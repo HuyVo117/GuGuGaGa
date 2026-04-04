@@ -13,10 +13,22 @@ Monorepo da nen tang gom 4 phan:
 cd Backend
 copy .env.example .env
 npm install
+npm run prisma:generate
+npm run prisma:migrate
+npm run seed
 npm run dev
 ```
 
 Backend mac dinh chay tai `http://localhost:5000`.
+
+Xem co so du lieu bang giao dien:
+
+```bash
+cd Backend
+npm run prisma:studio
+```
+
+Sau do mo URL Prisma Studio (thuong la `http://localhost:5555`) de xem/sua du lieu cac bang.
 
 ## 2) Khoi dong Admin
 
@@ -48,4 +60,6 @@ flutter run
 ## Ghi chu
 
 - Cac route backend da duoc chia theo nhom: `/api/admin`, `/api/user`, `/api/shipper`, `/api/public`.
-- Cac endpoint hien tai la scaffold ban dau de bat dau code nghiep vu.
+- Tai khoan seed mac dinh:
+	- Admin: `admin@chickengoo.vn` / `123456`
+	- Driver: `driver@chickengoo.vn` / `123456`
