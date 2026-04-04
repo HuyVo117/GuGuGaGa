@@ -63,5 +63,3 @@ flutter run
 - Tai khoan seed mac dinh:
   - Admin: `admin@gugugaga.vn` / `123456`
   - Driver: `driver@gugugaga.vn` / `123456`
-
-

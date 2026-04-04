@@ -14,3 +14,47 @@ export async function getAuthUser() {
 export function logoutAdmin() {
   localStorage.removeItem("admin_token");
 }
+
+export async function getAdminCategories() {
+  const { data } = await api.get("/admin/categories");
+  return data.items;
+}
+
+export async function getAdminProducts() {
+  const { data } = await api.get("/admin/products");
+  return data.items;
+}
+
+export async function createAdminProduct(payload) {
+  const { data } = await api.post("/admin/products", payload);
+  return data;
+}
+
+export async function deleteAdminProduct(id) {
+  await api.delete(`/admin/products/${id}`);
+}
+
+export async function getAdminOrders() {
+  const { data } = await api.get("/admin/orders");
+  return data.items;
+}
+
+export async function getAdminDrivers() {
+  const { data } = await api.get("/admin/drivers");
+  return data.items;
+}
+
+export async function getAdminUsers() {
+  const { data } = await api.get("/admin/users");
+  return data.items;
+}
+
+export async function getAdminBranches() {
+  const { data } = await api.get("/admin/branches");
+  return data.items;
+}
+
+export async function updateOrderStatus(id, payload) {
+  const { data } = await api.patch(`/admin/orders/${id}/status`, payload);
+  return data;
+}

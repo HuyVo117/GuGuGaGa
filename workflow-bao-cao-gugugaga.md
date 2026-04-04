@@ -226,5 +226,3 @@ Dieu kien hoan tat:
 
 - Luong dat mon -> giao hang thong suot, khong lech trang thai.
 - Hoan tat bo anh minh hoa tich hop (Anh 16 -> Anh 18).
-
-
