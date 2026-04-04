@@ -50,6 +50,8 @@ model Driver {
   email        String       @unique
   password     String
   statusDriver statusDriver @default(OFFLINE)
+  lastLat      Float?
+  lastLng      Float?
   createdAt    DateTime     @default(now())
 
   orders Order[]
