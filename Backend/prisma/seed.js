@@ -1,24 +1,24 @@
-import bcrypt from "bcryptjs";
+﻿import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma.js";
 
 async function main() {
   const hashed = await bcrypt.hash("123456", 10);
 
   await prisma.user.upsert({
-    where: { email: "admin@chickengoo.vn" },
+    where: { email: "admin@gugugaga.vn" },
     update: {},
     create: {
-      email: "admin@chickengoo.vn",
+      email: "admin@gugugaga.vn",
       password: hashed,
       role: "ADMIN",
     },
   });
 
   await prisma.driver.upsert({
-    where: { email: "driver@chickengoo.vn" },
+    where: { email: "driver@gugugaga.vn" },
     update: {},
     create: {
-      email: "driver@chickengoo.vn",
+      email: "driver@gugugaga.vn",
       password: hashed,
       statusDriver: "ONLINE",
     },
@@ -28,7 +28,7 @@ async function main() {
     where: { id: 1 },
     update: {},
     create: {
-      name: "ChickenGoo CN1",
+      name: "GuGuGaGa CN1",
       address: "HCM City",
     },
   });
@@ -74,3 +74,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

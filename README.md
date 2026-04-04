@@ -1,4 +1,4 @@
-# GuGuGaGa
+﻿# GuGuGaGa
 
 Monorepo da nen tang gom 4 phan:
 
@@ -61,5 +61,7 @@ flutter run
 
 - Cac route backend da duoc chia theo nhom: `/api/admin`, `/api/user`, `/api/shipper`, `/api/public`.
 - Tai khoan seed mac dinh:
-	- Admin: `admin@chickengoo.vn` / `123456`
-	- Driver: `driver@chickengoo.vn` / `123456`
+  - Admin: `admin@gugugaga.vn` / `123456`
+  - Driver: `driver@gugugaga.vn` / `123456`
+
+

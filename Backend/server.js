@@ -1,4 +1,4 @@
-import cors from "cors";
+﻿import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import adminRouter from "./routes/admin.route.js";
@@ -16,7 +16,7 @@ app.use(express.json());
 
 app.get("/", (req, res) => {
   res.json({
-    message: "ChickenGoo Backend is running",
+    message: "GuGuGaGa Backend is running",
     health: "/health",
   });
 });
@@ -38,3 +38,4 @@ app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`Backend listening on http://localhost:${PORT}`);
 });
+

@@ -1,5 +1,5 @@
-{
-  "name": "chickengoo-backend",
+﻿{
+  "name": "gugugaga-backend",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -25,3 +25,4 @@
     "prisma": "^5.17.0"
   }
 }
+

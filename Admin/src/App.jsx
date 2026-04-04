@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuthUser } from "./hooks/useAuthUser";
 import { loginAdmin, logoutAdmin } from "./authService";
 
 function LoginPage() {
-  const [email, setEmail] = useState("admin@chickengoo.vn");
+  const [email, setEmail] = useState("admin@gugugaga.vn");
   const [password, setPassword] = useState("123456");
   const [error, setError] = useState("");
 
@@ -21,7 +21,7 @@ function LoginPage() {
 
   return (
     <div style={{ maxWidth: 360, margin: "48px auto", fontFamily: "sans-serif" }}>
-      <h2>ChickenGoo Admin</h2>
+      <h2>GuGuGaGa Admin</h2>
       <form onSubmit={handleSubmit}>
         <input
           value={email}
@@ -73,3 +73,5 @@ export default function App() {
     </Routes>
   );
 }
+
+

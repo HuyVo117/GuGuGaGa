@@ -1,4 +1,4 @@
-# WORKFLOW TRIỂN KHAI HE THONG CHICKENGOO DA NEN TANG
+﻿# WORKFLOW TRIEN KHAI HE THONG GuGuGaGa DA NEN TANG
 
 ## 1. Tong quan du an
 
@@ -226,3 +226,5 @@ Dieu kien hoan tat:
 
 - Luong dat mon -> giao hang thong suot, khong lech trang thai.
 - Hoan tat bo anh minh hoa tich hop (Anh 16 -> Anh 18).
+
+
