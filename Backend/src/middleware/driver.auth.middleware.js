@@ -1,49 +1,59 @@
 import jwt from "jsonwebtoken";
-import { config } from "../configs/env.js";
 import prisma from "../configs/prisma.js";
+import { config } from "../configs/env.js";
 
 /**
- * Middleware xac thuc JWT cho Driver.
- * Neu hop le -> gan req.user = driver.
+ * Middleware xác thực JWT cho Driver.
+ * Nếu hợp lệ -> gán req.user = driver
  */
 export const protectDriverRoute = async (req, res, next) => {
-	try {
-		let token;
+  try {
+    let token;
 
-		if (req.headers.authorization?.startsWith("Bearer")) {
-			token = req.headers.authorization.split(" ")[1];
-		}
+    // 1. Lấy token từ header Authorization: Bearer <token>
+    console.log("Headers:", req.headers);
+    if (req.headers.authorization?.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
-		if (!token && req.cookies?.jwt) {
-			token = req.cookies.jwt;
-		}
+    // 2. Nếu không có header -> lấy từ cookie
+    if (!token && req.cookies?.jwt) {
+      token = req.cookies.jwt;
+    }
 
-		if (!token) {
-			return res.status(401).json({
-				success: false,
-				message: "Unauthorized: No token provided",
-			});
-		}
+    // 3. Không có token -> chưa đăng nhập
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: No token provided",
+      });
+    }
 
-		const decoded = jwt.verify(token, config.jwtSecret);
+    // 4. Verify token
+    const decoded = jwt.verify(token, config.jwtSecret);
 
-		const driver = await prisma.driver.findUnique({
-			where: { id: decoded.id || decoded.userId },
-		});
+    // 5. Tìm driver trong DB
+    // Token shipper có payload { id: driver.id, role: "DRIVER" }
+    const driver = await prisma.driver.findUnique({
+      where: { id: decoded.id },
+    });
 
-		if (!driver) {
-			return res.status(401).json({
-				success: false,
-				message: "Unauthorized: Driver not found",
-			});
-		}
+    if (!driver) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Driver not found",
+      });
+    }
 
-		req.user = driver;
-		next();
-	} catch {
-		return res.status(401).json({
-			success: false,
-			message: "Invalid or expired token",
-		});
-	}
+    // 6. Gán user vào req (để thống nhất với controller dùng req.user)
+    req.user = driver;
+
+    next(); // Cho phép tiếp tục vào controller
+  } catch (error) {
+    console.error("Auth error:", error);
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
 };

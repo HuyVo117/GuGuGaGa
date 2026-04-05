@@ -1,9 +1,17 @@
-import { Router } from 'express';
-import userAuthRoute from './user/user-auth.route.js';
-import cartRoute from './user/cart.route.js';
-import orderRoute from './user/order.route.js';
-const router = Router();
-router.use('/auth', userAuthRoute);
-router.use('/cart', cartRoute);
-router.use('/orders', orderRoute);
-export default router;
+import express from "express";
+import routerAuth from "./user/user-auth.route.js";
+import { protectRoute } from "../middleware/auth.middleware.js";
+import { checkRole } from "../middleware/checkRole.midlleware.js";
+import routerCart from "./user/cart.route.js";
+import routerOrder from "./user/order.route.js";
+const routerUser = express.Router();
+
+routerUser.use("/auth", routerAuth);
+
+routerUser.use(protectRoute);
+routerUser.use("/carts", routerCart);
+routerUser.use("/orders", routerOrder);
+
+// routerUser.use(protectRoute);
+// router.use("/", checkRole("CUSTOMER") )
+export default routerUser;

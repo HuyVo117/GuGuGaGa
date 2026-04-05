@@ -1,93 +1,134 @@
-import { ApiResponse } from "../configs/apiResponse.js";
-import { cartService } from "../services/cart.service.js";
 import { orderService } from "../services/order.service.js";
+import { cartService } from "../services/cart.service.js";
+import { ApiResponse } from "../configs/apiResponse.js";
 
 export const orderController = {
-	// ADMIN
-	async getAllOrders(req, res) {
-		try {
-			const orders = await orderService.getAll();
-			return ApiResponse.success(res, orders, "Lay tat ca don hang thanh cong.");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+  // Lấy tất cả đơn hàng (ADMIN)
+  getAllOrders: async (req, res) => {
+    try {
+      const orders = await orderService.getAll();
+      return ApiResponse.success(
+        res,
+        orders,
+        "Lấy tất cả đơn hàng thành công."
+      );
+    } catch (error) {
+      console.error("[getAllOrders]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  getAdminOrderDetail: async (req, res) => {
+    try {
+      const orderId = Number(req.params.id);
+      const order = await orderService.getAdminOrderDetail(orderId);
+      if (!order) {
+        return ApiResponse.error(res, { message: "Đơn hàng không tồn tại." }, 404);
+      }
+      return ApiResponse.success(res, order, "Lấy chi tiết đơn hàng thành công.");
+    } catch (error) {
+      console.error("[getAdminOrderDetail]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  createOrder: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { branchId, paymentMethod, deliveryAddress, deliveryPhone } =
+        req.body;
 
-	async getAdminOrderDetail(req, res) {
-		try {
-			const orderId = Number(req.params.id);
-			const order = await orderService.getAdminOrderDetail(orderId);
-			if (!order) {
-				return ApiResponse.error(res, new Error("Don hang khong ton tai."), 404);
-			}
-			return ApiResponse.success(res, order, "Lay chi tiet don hang thanh cong.");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+      if (!branchId || !paymentMethod || !deliveryAddress || !deliveryPhone) {
+        return ApiResponse.error(
+          res,
+          { message: "Thiếu thông tin đặt hàng." },
+          400
+        );
+      }
 
-	// USER
-	async createOrder(req, res) {
-		try {
-			const userId = req.user.id;
-			const { paymentMethod = "COD" } = req.body;
+      const cart = await cartService.getCart(userId, Number(branchId));
 
-			const cart = await cartService.getCart(userId);
-			if (!cart || cart.cartItem.length === 0) {
-				return ApiResponse.error(res, new Error("Gio hang trong, khong the tao don hang."), 400);
-			}
+      if (!cart || cart.cartItem.length === 0) {
+        return ApiResponse.error(
+          res,
+          { message: "Giỏ hàng trống, không thể tạo đơn hàng." },
+          400
+        );
+      }
 
-			const order = await orderService.createOrder(userId, cart, { paymentMethod });
-			return ApiResponse.success(res, order, "Dat hang thanh cong.");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+      const order = await orderService.createOrder(userId, cart, req.body);
 
-	async getOrders(req, res) {
-		try {
-			const userId = req.user.id;
-			const orders = await orderService.getOrdersByUser(userId);
-			return ApiResponse.success(res, orders, "Lay danh sach don hang thanh cong.");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+      return ApiResponse.success(res, order, "Đặt hàng thành công.");
+    } catch (error) {
+      console.error("[createOrder]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
 
-	async getOrderDetail(req, res) {
-		try {
-			const orderId = Number(req.params.id);
-			const userId = req.user.id;
+  getOrders: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      console.log(`[getOrders] Fetching orders for userId: ${userId}`);
 
-			const order = await orderService.getOrderDetail(orderId, userId);
-			if (!order) {
-				return ApiResponse.error(res, new Error("Don hang khong ton tai."), 404);
-			}
+      const orders = await orderService.getOrdersByUser(userId);
+      console.log(`[getOrders] Found ${orders.length} orders`);
 
-			return ApiResponse.success(res, order, "Lay chi tiet don hang thanh cong.");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+      return ApiResponse.success(
+        res,
+        orders,
+        "Lấy danh sách đơn hàng thành công."
+      );
+    } catch (error) {
+      console.error("[getOrders]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
 
-	async updateStatus(req, res) {
-		try {
-			const status = req.body.status || req.body.statusOrder;
-			const order = await orderService.updateStatus(req.params.id, status);
-			return ApiResponse.success(res, order, "Cap nhat trang thai thanh cong");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+  getOrderDetail: async (req, res) => {
+    try {
+      const orderId = Number(req.params.id);
+      const userId = req.user.id;
 
-	async assignDriver(req, res) {
-		try {
-			const { orderId } = req.params;
-			const { driverId } = req.body;
-			const order = await orderService.assignDriver(orderId, driverId);
-			return ApiResponse.success(res, order, "Gan tai xe thanh cong");
-		} catch (error) {
-			return ApiResponse.error(res, error);
-		}
-	},
+      const order = await orderService.getOrderDetail(orderId, userId);
+
+      if (!order) {
+        return ApiResponse.error(
+          res,
+          { message: "Đơn hàng không tồn tại." },
+          404
+        );
+      }
+
+      return ApiResponse.success(
+        res,
+        order,
+        "Lấy chi tiết đơn hàng thành công."
+      );
+    } catch (error) {
+      console.error("[getOrderDetail]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  async updateStatus(req, res) {
+    try {
+      const order = await orderService.updateStatus(
+        req.params.id,
+        req.body.status
+      );
+
+      return ApiResponse.success(res, order, "Cập nhật trạng thái thành công");
+    } catch (error) {
+      return ApiResponse.error(res, error);
+    }
+  },
+  async assignDriver(req, res) {
+    try {
+      const { orderId } = req.params;
+      const { driverId } = req.body;
+
+      const order = await orderService.assignDriver(orderId, driverId);
+
+      return ApiResponse.success(res, order, "Gán tài xế thành công");
+    } catch (error) {
+      return ApiResponse.error(res, error);
+    }
+  },
 };

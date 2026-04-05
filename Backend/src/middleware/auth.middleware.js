@@ -3,52 +3,62 @@ import prisma from "../configs/prisma.js";
 import { config } from "../configs/env.js";
 
 /**
- * Middleware xac thuc JWT.
- * Neu hop le -> gan req.user = { id, email, role }.
+ * Middleware xác thực JWT.
+ * Nếu hợp lệ → gán req.user = { id, name, phone, email, role }
  */
 export const protectRoute = async (req, res, next) => {
-	try {
-		let token;
+  try {
+    let token;
+    console.log("ProtectRoute middleware called");
 
-		if (req.headers.authorization?.startsWith("Bearer")) {
-			token = req.headers.authorization.split(" ")[1];
-		}
+    // 1. Lấy token từ header Authorization: Bearer <token>
+    if (req.headers.authorization?.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1];
+    }
 
-		if (!token && req.cookies?.jwt) {
-			token = req.cookies.jwt;
-		}
+    // 2. Nếu không có header → lấy từ cookie
+    if (!token && req.cookies?.jwt) {
+      token = req.cookies.jwt;
+    }
 
-		if (!token) {
-			return res.status(401).json({
-				success: false,
-				message: "Unauthorized: No token provided",
-			});
-		}
+    // 3. Không có token → chưa đăng nhập
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: No token provided",
+      });
+    }
 
-		const decoded = jwt.verify(token, config.jwtSecret);
+    // 4. Verify token
+    const decoded = jwt.verify(token, config.jwtSecret);
 
-		const user = await prisma.user.findUnique({
-			where: { id: decoded.userId || decoded.id },
-			select: {
-				id: true,
-				email: true,
-				role: true,
-			},
-		});
+    // 5. Tìm user trong DB
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        role: true,
+      },
+    });
 
-		if (!user) {
-			return res.status(401).json({
-				success: false,
-				message: "Unauthorized: User not found",
-			});
-		}
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: User not found",
+      });
+    }
 
-		req.user = user;
-		next();
-	} catch {
-		return res.status(401).json({
-			success: false,
-			message: "Invalid or expired token",
-		});
-	}
+    // 6. Gán user vào req
+    req.user = user;
+
+    next(); // Cho phép tiếp tục vào controller
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
 };

@@ -1,13 +1,20 @@
-import { Router } from "express";
+import express from "express";
 import { cartController } from "../../controllers/cart.controller.js";
-import { protectRoute } from "../../middleware/auth.middleware.js";
 
-const router = Router();
+const routerCart = express.Router();
 
-router.use(protectRoute);
-router.get("/", cartController.getCart);
-router.post("/items", cartController.addItem);
-router.patch("/items/:itemId", cartController.updateItem);
-router.delete("/items/:itemId", cartController.removeItem);
+// Lấy cart theo branch
+routerCart.get("/", cartController.getCart);
 
-export default router;
+routerCart.post("/create", cartController.createCart);
+
+// Thêm sản phẩm vào cart
+routerCart.post("/add", cartController.addToCart);
+
+// Cập nhật số lượng 1 item
+routerCart.put("/:id", cartController.updateQuantity);
+
+// Xóa item khỏi cart
+routerCart.delete("/:id", cartController.removeItem);
+
+export default routerCart;

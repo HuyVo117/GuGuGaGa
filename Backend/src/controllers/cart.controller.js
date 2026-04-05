@@ -1,50 +1,127 @@
-import { ApiResponse } from "../configs/apiResponse.js";
 import { cartService } from "../services/cart.service.js";
+import { ApiResponse } from "../configs/apiResponse.js";
 
 export const cartController = {
-	async getCart(req, res) {
-		try {
-			const cart = await cartService.getOrCreateCart(req.user.id);
-			return ApiResponse.success(res, cart, "Lay gio hang thanh cong");
-		} catch (error) {
-			return ApiResponse.error(res, error, 400);
-		}
-	},
+  createCart: async (req, res) => {
+    try {
+      const { branchId } = req.body;
 
-	async addItem(req, res) {
-		try {
-			const { productId, quantity = 1 } = req.body || {};
-			if (!productId) {
-				return ApiResponse.error(res, new Error("productId is required"), 400);
-			}
+      if (!branchId) {
+        return ApiResponse.error(
+          res,
+          { message: "Vui lòng chọn chi nhánh." },
+          400
+        );
+      }
 
-			const item = await cartService.addItem(req.user.id, productId, quantity);
-			return ApiResponse.success(res, item, "Them san pham vao gio hang thanh cong", 201);
-		} catch (error) {
-			return ApiResponse.error(res, error, 400);
-		}
-	},
+      const cart = await cartService.createCart(req.user.id, Number(branchId));
 
-	async updateItem(req, res) {
-		try {
-			const { quantity } = req.body || {};
-			if (!quantity || Number(quantity) < 1) {
-				return ApiResponse.error(res, new Error("quantity must be >= 1"), 400);
-			}
+      return ApiResponse.success(res, cart, "Cart rỗng đã được tạo.");
+    } catch (error) {
+      console.error("[createCart]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  getCart: async (req, res) => {
+    try {
+      const { branchId } = req.query;
 
-			const item = await cartService.updateItemQuantity(req.user.id, req.params.itemId, quantity);
-			return ApiResponse.success(res, item, "Cap nhat so luong thanh cong");
-		} catch (error) {
-			return ApiResponse.error(res, error, 400);
-		}
-	},
+      if (!branchId) {
+        return ApiResponse.error(
+          res,
+          { message: "Vui lòng chọn chi nhánh (branchId)." },
+          400
+        );
+      }
 
-	async removeItem(req, res) {
-		try {
-			const result = await cartService.removeItem(req.user.id, req.params.itemId);
-			return ApiResponse.success(res, result, "Xoa san pham khoi gio hang thanh cong");
-		} catch (error) {
-			return ApiResponse.error(res, error, 400);
-		}
-	},
+      const cart = await cartService.getCart(req.user.id, Number(branchId));
+
+      return ApiResponse.success(res, cart, "Lấy giỏ hàng thành công.");
+    } catch (error) {
+      console.error("[getCart]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+
+  addToCart: async (req, res) => {
+    try {
+      const { productId, comboId, quantity } = req.body;
+
+      if ((!productId && !comboId) || !quantity || quantity < 1) {
+        return ApiResponse.error(
+          res,
+          { message: "Thiếu thông tin (productId hoặc comboId) hoặc số lượng không hợp lệ." },
+          400
+        );
+      }
+
+      const branchId = Number(req.body.branchId);
+
+      // Lấy cart hiện tại hoặc tạo mới nếu chưa có
+      let cart = await cartService.getCart(req.user.id, branchId);
+      
+      if (!cart || !cart.id) {
+        // Nếu chưa có cart (hoặc trả về object rỗng), tạo mới
+        cart = await cartService.createCart(req.user.id, branchId);
+      }
+
+      const updatedCart = await cartService.addToCart(
+        req.user.id,
+        cart.branchId,
+        productId ? Number(productId) : null,
+        comboId ? Number(comboId) : null,
+        Number(quantity)
+      );
+
+      return ApiResponse.success(
+        res,
+        updatedCart,
+        "Thêm vào giỏ hàng thành công."
+      );
+    } catch (error) {
+      console.error("[addToCart]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  updateQuantity: async (req, res) => {
+    try {
+      const cartItemId = Number(req.params.id);
+      const { quantity } = req.body;
+
+      if (!quantity || quantity < 1) {
+        return ApiResponse.error(
+          res,
+          { message: "Số lượng không hợp lệ (phải lớn hơn 0)." },
+          400
+        );
+      }
+
+      const cart = await cartService.updateQuantity(
+        cartItemId,
+        Number(quantity)
+      );
+
+      return ApiResponse.success(res, cart, "Cập nhật số lượng thành công.");
+    } catch (error) {
+      console.error("[updateQuantity]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+
+  removeItem: async (req, res) => {
+    try {
+      const cartItemId = Number(req.params.id);
+
+      const cart = await cartService.removeItem(cartItemId);
+
+      return ApiResponse.success(
+        res,
+        cart,
+        "Xóa sản phẩm khỏi giỏ hàng thành công."
+      );
+    } catch (error) {
+      console.error("[removeItem]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
 };

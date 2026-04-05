@@ -1,11 +1,21 @@
-import { Router } from "express";
+import express from "express";
 import { driverController } from "../../controllers/driver.controller.js";
-import { protectRoute } from "../../middleware/auth.middleware.js";
-import { checkRole } from "../../middleware/checkRole.midlleware.js";
 
-const router = Router();
+const routerDriver = express.Router();
 
-router.use(protectRoute, checkRole("ADMIN"));
-router.get("/", driverController.getAll);
+// Lấy danh sách tài xế
+routerDriver.get("/", driverController.getAll);
 
-export default router;
+// Lấy 1 tài xế theo id
+routerDriver.get("/:id", driverController.getById);
+
+// Tạo tài xế
+routerDriver.post("/create", driverController.create);
+
+// Cập nhật tài xế
+routerDriver.put("/:id", driverController.update);
+
+// Xóa tài xế
+routerDriver.delete("/:id", driverController.remove);
+
+export default routerDriver;

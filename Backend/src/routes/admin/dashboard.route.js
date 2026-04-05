@@ -1,4 +1,8 @@
-import { Router } from 'express';
-const router = Router();
-router.get('/', (req, res) => res.status(501).json({ message: 'TODO route' }));
-export default router;
+import express from "express";
+import { dashboardController } from "../../controllers/dashboard.controller.js";
+
+const routerDashboard = express.Router();
+
+routerDashboard.get("/", dashboardController.getStats);
+
+export default routerDashboard;

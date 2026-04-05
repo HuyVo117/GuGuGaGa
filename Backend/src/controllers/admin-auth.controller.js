@@ -1,63 +1,77 @@
-import { ApiResponse } from "../configs/apiResponse.js";
 import { authService } from "../services/auth.service.js";
+import { ApiResponse } from "../configs/apiResponse.js";
 
 export const adminAuthController = {
-	async signIn(req, res) {
-		try {
-			const { email, password } = req.body;
+  async signIn(req, res) {
+    try {
+      const { phone, password } = req.body;
 
-			if (!email || !password) {
-				return ApiResponse.error(res, new Error("All fields are required"), 400);
-			}
+      if (!phone || !password) {
+        return ApiResponse.error(
+          res,
+          new Error("All fields are required"),
+          400
+        );
+      }
 
-			const result = await authService.signIn(email, password);
+      const result = await authService.signIn(phone, password);
 
-			if (result.user.role !== "ADMIN") {
-				return ApiResponse.error(res, new Error("Ban khong co quyen truy cap"), 403);
-			}
+      if (result.user.role !== "ADMIN") {
+        console.log("From AdminAuthController", result.user);
+        return ApiResponse.error(
+          res,
+          new Error("Bạn không có quyền truy cập"),
+          403
+        );
+      }
+      // console.log("From AdminAuthController", result.user);
+      // console.log("Setting cookie for admin user", result.token);
+      res.cookie("jwt", result.token, {
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+        httpOnly: true, // Không cho frontend JS đọc (ngăn XSS)
+        sameSite: "strict", // Chỉ gửi cookie cùng domain, chống CSRF cơ bản
+        secure: process.env.NODE_ENV === "production", // Chỉ gửi cookie qua HTTPS trong production
+      });
+      // console.log(result.data);
+      return ApiResponse.success(res, result, "Đăng nhập thành công");
+    } catch (err) {
+      return ApiResponse.error(res, err, 400);
+    }
+  },
 
-			res.cookie("jwt", result.token, {
-				maxAge: 7 * 24 * 60 * 60 * 1000,
-				httpOnly: true,
-				sameSite: "strict",
-				secure: process.env.NODE_ENV === "production",
-			});
+  async signOut(req, res) {
+    try {
+      // Nếu bạn dùng cookie để lưu token, xoá cookie
+      res.clearCookie("jwt", {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+      });
 
-			return ApiResponse.success(res, result, "Dang nhap thanh cong");
-		} catch (err) {
-			return ApiResponse.error(res, err, 400);
-		}
-	},
+      return ApiResponse.success(res, null, "Đăng xuất thành công");
+    } catch (err) {
+      return ApiResponse.error(res, err, 500);
+    }
+  },
+  async getMe(req, res) {
+    try {
+      // Kiểm tra user được gán từ protectRoute
+      if (!req.user) {
+        console.log("No user found in request");
+        return ApiResponse.error(res, new Error("Unauthorized"), 401);
+      }
 
-	async signOut(req, res) {
-		try {
-			res.clearCookie("jwt", {
-				httpOnly: true,
-				sameSite: "strict",
-				secure: process.env.NODE_ENV === "production",
-			});
-
-			return ApiResponse.success(res, null, "Dang xuat thanh cong");
-		} catch (err) {
-			return ApiResponse.error(res, err, 500);
-		}
-	},
-
-	async getMe(req, res) {
-		try {
-			if (!req.user) {
-				return ApiResponse.error(res, new Error("Unauthorized"), 401);
-			}
-
-			const user = {
-				id: req.user.id,
-				email: req.user.email,
-				role: req.user.role,
-			};
-
-			return ApiResponse.success(res, { user }, "User info", 200);
-		} catch (err) {
-			return ApiResponse.error(res, err, 500);
-		}
-	},
+      // Trả thông tin user
+      const user = {
+        id: req.user.id,
+        phone: req.user.phone,
+        name: req.user.name,
+        role: req.user.role,
+      };
+      return ApiResponse.success(res, { user }, "User info", 200);
+    } catch (err) {
+      console.error("Error in getMe:", err);
+      return ApiResponse.error(res, err, 500);
+    }
+  },
 };

@@ -1,11 +1,10 @@
-import { Router } from "express";
+import express from "express";
 import { userController } from "../../controllers/user.controller.js";
-import { protectRoute } from "../../middleware/auth.middleware.js";
-import { checkRole } from "../../middleware/checkRole.midlleware.js";
+const routerUser = express.Router();
+routerUser.get("/", userController.getAll);
+routerUser.get("/:id", userController.getById);
+routerUser.post("/", userController.create);
+routerUser.put("/:id", userController.update);
+routerUser.delete("/:id", userController.delete);
 
-const router = Router();
-
-router.use(protectRoute, checkRole("ADMIN"));
-router.get("/", userController.getAll);
-
-export default router;
+export default routerUser;

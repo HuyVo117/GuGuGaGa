@@ -1,11 +1,9 @@
-import { Router } from "express";
+import express from "express";
 import { categoryController } from "../../controllers/category.controller.js";
-import { protectRoute } from "../../middleware/auth.middleware.js";
-import { checkRole } from "../../middleware/checkRole.midlleware.js";
+const routerCategory = express.Router();
 
-const router = Router();
-
-router.use(protectRoute, checkRole("ADMIN"));
-router.get("/", categoryController.getAll);
-
-export default router;
+routerCategory.get("/", categoryController.getAllCategories);
+routerCategory.post("/", categoryController.createCategory);
+routerCategory.put("/:id", categoryController.updateCategory);
+routerCategory.delete("/:id", categoryController.deleteCategory);
+export default routerCategory;
