@@ -25,6 +25,43 @@ router.post("/auth/login", async (req, res) => {
   return res.json({ token, user: { id: driver.id, role: "DRIVER", email: driver.email } });
 });
 
+router.get("/orders/available", requireAuth(["DRIVER"]), async (req, res) => {
+  const items = await prisma.order.findMany({
+    where: { driverId: null, statusOrder: { in: ["PENDING", "CONFIRMED"] } },
+    include: {
+      user: { select: { id: true, email: true } },
+      branch: true,
+      orderItems: { include: { product: true, combo: true } },
+      bill: true,
+    },
+    orderBy: { id: "desc" },
+  });
+  return res.json({ items });
+});
+
+router.post("/orders/:id/accept", requireAuth(["DRIVER"]), async (req, res) => {
+  const id = Number(req.params.id);
+
+  const order = await prisma.order.findUnique({ where: { id } });
+  if (!order) {
+    return res.status(404).json({ message: "Order not found" });
+  }
+
+  if (order.driverId && order.driverId !== req.user.id) {
+    return res.status(409).json({ message: "Order already accepted by another driver" });
+  }
+
+  const item = await prisma.order.update({
+    where: { id },
+    data: {
+      driverId: req.user.id,
+      statusOrder: order.statusOrder === "PENDING" ? "CONFIRMED" : order.statusOrder,
+    },
+  });
+
+  return res.json(item);
+});
+
 router.get("/orders", requireAuth(["DRIVER"]), async (req, res) => {
   const items = await prisma.order.findMany({
     where: { driverId: req.user.id },
