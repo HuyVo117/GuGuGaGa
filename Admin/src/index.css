@@ -2,6 +2,131 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --bg-app: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-soft: #f1f5f9;
+    --bg-hover: #e2e8f0;
+
+    --border-default: #dbe4ee;
+
+    --text-strong: #0f172a;
+    --text-base: #334155;
+    --text-muted: #64748b;
+
+    --accent-500: #d97706;
+    --accent-600: #b45309;
+    --accent-soft-from: #fef3c7;
+    --accent-soft-to: #ffe4e6;
+    --ring-color: rgb(217 119 6 / 0.35);
+  }
+
+  :root.dark {
+    color-scheme: dark;
+
+    --bg-app: #020617;
+    --bg-surface: #0f172a;
+    --bg-soft: #1e293b;
+    --bg-hover: #334155;
+
+    --border-default: #334155;
+
+    --text-strong: #f8fafc;
+    --text-base: #cbd5e1;
+    --text-muted: #94a3b8;
+
+    --accent-500: #f59e0b;
+    --accent-600: #fbbf24;
+    --accent-soft-from: rgb(120 53 15 / 0.45);
+    --accent-soft-to: rgb(127 29 29 / 0.35);
+    --ring-color: rgb(245 158 11 / 0.4);
+  }
+
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-base);
+    transition: background-color 220ms ease, color 220ms ease;
+  }
+}
+
+@layer utilities {
+  .bg-white {
+    background-color: var(--bg-surface) !important;
+  }
+
+  .bg-gray-200,
+  .bg-gray-50,
+  .bg-gray-100 {
+    background-color: var(--bg-soft) !important;
+  }
+
+  .text-gray-900 {
+    color: var(--text-strong) !important;
+  }
+
+  .text-gray-800,
+  .text-gray-700,
+  .text-gray-600 {
+    color: var(--text-base) !important;
+  }
+
+  .text-gray-300,
+  .text-gray-500,
+  .text-gray-400 {
+    color: var(--text-muted) !important;
+  }
+
+  .border-gray-200,
+  .border-gray-300 {
+    border-color: var(--border-default) !important;
+  }
+
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-100:hover {
+    background-color: var(--bg-hover) !important;
+  }
+
+  .focus\:ring-blue-500:focus,
+  .focus\:ring-orange-500:focus,
+  .focus\:ring-amber-500:focus {
+    --tw-ring-color: var(--ring-color);
+  }
+
+  .data-\[state\=active\]\:border-blue-600[data-state="active"] {
+    border-color: var(--accent-600) !important;
+  }
+
+  .data-\[state\=active\]\:text-blue-600[data-state="active"] {
+    color: var(--accent-600) !important;
+  }
+
+  .from-blue-50,
+  .from-amber-100 {
+    --tw-gradient-from: var(--accent-soft-from) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(255 255 255 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+
+  .to-purple-50,
+  .to-rose-100 {
+    --tw-gradient-to: var(--accent-soft-to) var(--tw-gradient-to-position);
+  }
+}
+
+/* High-priority fallback so pages that heavily use Tailwind gray utilities stay synchronized in both themes. */
+html:not(.dark) .bg-slate-900,
+html:not(.dark) .bg-slate-950 {
+  background-color: var(--bg-app) !important;
+}
+
+html:not(.dark) .text-slate-100,
+html:not(.dark) .text-slate-300 {
+  color: var(--text-base) !important;
+}
+
 * {
   margin: 0;
   padding: 0;

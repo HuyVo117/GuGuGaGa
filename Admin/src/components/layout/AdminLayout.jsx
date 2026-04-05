@@ -15,6 +15,8 @@ import {
   Building2,
   Box,
   Truck,
+  Sun,
+  Moon,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Avatar from "@radix-ui/react-avatar";
@@ -34,6 +36,7 @@ const menuItems = [
 
 import useSignOut from "../../hooks/useSignOut";
 import useAuthUser from "../../hooks/useAuthUser";
+import useTheme from "../../hooks/useTheme";
 
 export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -41,6 +44,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const { signOutMutation } = useSignOut();
   const { authUser } = useAuthUser();
+  const { isDark, toggleTheme } = useTheme();
 
   // Responsive: đóng sidebar trên mobile
   useEffect(() => {
@@ -57,7 +61,7 @@ export default function AdminLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "var(--bg-app)", color: "var(--text-base)" }}>
       {/* Mobile Overlay */}
       {mobileMenuOpen && (
         <div
@@ -81,7 +85,7 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 shrink-0">
           {sidebarOpen && (
-            <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-amber-600 to-rose-600 bg-clip-text text-transparent">
               GuGuGaGa Management
             </h1>
           )}
@@ -108,7 +112,7 @@ export default function AdminLayout() {
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                   isActive
-                    ? "bg-gradient-to-r from-blue-50 to-purple-50 text-blue-600 font-medium shadow-sm"
+                    ? "bg-gradient-to-r from-amber-100 to-rose-100 dark:from-amber-900/40 dark:to-rose-900/30 text-amber-700 dark:text-amber-300 font-medium shadow-sm"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
@@ -147,9 +151,9 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ backgroundColor: "var(--bg-app)" }}>
         {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6 shrink-0">
+        <header className="h-16 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between px-4 lg:px-6 shrink-0" style={{ backgroundColor: "var(--bg-surface)" }}>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -173,6 +177,19 @@ export default function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-2 lg:gap-4">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              title={isDark ? "Chuyển sang sáng" : "Chuyển sang tối"}
+            >
+              {isDark ? (
+                <Sun size={20} className="text-amber-300" />
+              ) : (
+                <Moon size={20} className="text-gray-600" />
+              )}
+            </button>
+
             {/* Notifications */}
             <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <Bell size={20} className="text-gray-600" />
@@ -224,7 +241,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6" style={{ backgroundColor: "var(--bg-app)" }}>
           <Outlet />
         </main>
       </div>
