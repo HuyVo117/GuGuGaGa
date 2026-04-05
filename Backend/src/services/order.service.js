@@ -1,205 +1,192 @@
 import prisma from "../configs/prisma.js";
 
+
 export const orderService = {
-	async getAll() {
-		return prisma.order.findMany({
-			include: {
-				orderItem: {
-					include: {
-						product: { include: { category: true } },
-						combo: true,
-					},
-				},
-				user: true,
-				branch: true,
-				driver: true,
-			},
-			orderBy: { id: "desc" },
-		});
-	},
+  // Lấy tất cả đơn hàng (ADMIN)
+  async getAll() {
+    return await prisma.order.findMany({
+      include: {
+        orderItem: {
+          include: {
+            product: { include: { category: true } },
+            combo: true,
+          },
+        },
+        user: true,
+        branch: true,
+        driver: true, // nếu muốn show luôn tài xế
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+  createOrder: async (userId, cart, body) => {
+    const { paymentMethod, deliveryAddress, deliveryPhone, latitude, longitude } = body;
 
-	async createOrder(userId, cart, body) {
-		const { paymentMethod = "COD" } = body;
+    // Convert cart items -> order items
+    const items = cart.cartItem.map((item) => ({
+      productId: item.productId,
+      comboId: item.comboId,
+      quantity: item.quantity,
+      price: item.price, // lấy giá từ CartItem
+    }));
 
-		// Demo fallback branch: use branch id 1 if cart has no branch context.
-		const branchId = 1;
+    // Tính tổng tiền từ cart luôn, không cần map lại
+    const totalAmount = cart.totalAmount;
 
-		const productIds = cart.cartItem.map((item) => item.productId).filter(Boolean);
-		const products = await prisma.product.findMany({
-			where: { id: { in: productIds } },
-		});
-		const productMap = new Map(products.map((p) => [p.id, p]));
+    // Tạo order
+    const order = await prisma.order.create({
+      data: {
+        userId,
+        branchId: cart.branchId,
+        totalAmount,
+        paymentMethod,
+        deliveryAddress,
+        deliveryPhone,
+        latitude,
+        longitude,
+        orderItem: {
+          create: items,
+        },
+      },
+      include: {
+        orderItem: true,
+      },
+    });
 
-		const items = cart.cartItem.map((item) => {
-			if (item.productId) {
-				const product = productMap.get(item.productId);
-				if (!product) {
-					throw new Error(`Product ${item.productId} not found`);
-				}
-				return {
-					productId: item.productId,
-					quantity: item.quantity,
-					price: item.price,
-				};
-			}
+    // Xóa cart sau khi tạo order
+    await prisma.cartItem.deleteMany({
+      where: { cartId: cart.id },
+    });
 
-			if (item.comboId) {
-				return {
-					comboId: item.comboId,
-					quantity: item.quantity,
-					price: item.price,
-				};
-			}
+    await prisma.cart.delete({
+      where: { id: cart.id },
+    });
 
-			throw new Error("Cart item khong hop le");
-		});
+    return order;
+  },
 
-		const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  getOrdersByUser: async (userId) => {
+    return await prisma.order.findMany({
+      where: { userId },
+      include: {
+        orderItem: {
+          include: {
+            product: { include: { category: true } },
+            combo: true,
+          },
+        },
+        branch: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  },
 
-		const order = await prisma.$transaction(async (tx) => {
-			const user = await tx.user.findUnique({ where: { id: userId } });
-			if (!user) {
-				throw new Error("User khong ton tai");
-			}
+  getOrderDetail: async (orderId, userId) => {
+    return await prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: {
+        orderItem: {
+          include: {
+            product: { include: { category: true } },
+            combo: true,
+          },
+        },
+        branch: true,
+      },
+    });
+  },
 
-			const created = await tx.order.create({
-				data: {
-					userId,
-					branchId,
-					totalAmount,
-					status: "PENDING",
-					paymentMethod,
-					deliveryAddress: user.address || "Chua cap nhat dia chi",
-					deliveryPhone: user.phone,
-					orderItem: {
-						create: items,
-					},
-				},
-				include: {
-					orderItem: true,
-				},
-			});
+  getAdminOrderDetail: async (orderId) => {
+    return await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        orderItem: {
+          include: {
+            product: { include: { category: true } },
+            combo: true,
+          },
+        },
+        branch: true,
+        user: true,
+        driver: true,
+      },
+    });
+  },
 
-			await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
-			await tx.cart.update({ where: { id: cart.id }, data: { totalAmount: 0 } });
+  // Cập nhật trạng thái đơn hàng
+  async updateStatus(orderId, status) {
+    // Kiểm tra status hợp lệ
+    const validStatuses = [
+      "PENDING",
+      "ACCEPTED",
+      "DRIVER_ASSIGNED",
+      "DELIVERED",
+      "CANCELLED",
+    ];
+    if (!validStatuses.includes(status)) {
+      throw new Error(
+        `Status không hợp lệ. Chỉ chấp nhận: ${validStatuses.join(", ")}`
+      );
+    }
 
-			return tx.order.findUnique({
-				where: { id: created.id },
-				include: {
-					orderItem: { include: { product: true, combo: true } },
-					branch: true,
-				},
-			});
-		});
+    // Nếu đơn hàng hoàn thành -> set driver về AVAILABLE
+    if (status === "DELIVERED") {
+      const currentOrder = await prisma.order.findUnique({
+        where: { id: Number(orderId) },
+      });
+      if (currentOrder && currentOrder.driverId) {
+        await prisma.driver.update({
+          where: { id: currentOrder.driverId },
+          data: { status: "AVAILABLE" },
+        });
+      }
+    }
 
-		return order;
-	},
+    // Cập nhật
+    const order = await prisma.order.update({
+      where: { id: Number(orderId) },
+      data: { status },
+      include: {
+        orderItem: true,
+        user: true,
+        branch: true,
+        driver: true,
+      },
+    });
 
-	async getOrdersByUser(userId) {
-		return prisma.order.findMany({
-			where: { userId },
-			include: {
-				orderItem: {
-					include: {
-						product: { include: { category: true } },
-						combo: true,
-					},
-				},
-				branch: true,
-				driver: true,
-			},
-			orderBy: { id: "desc" },
-		});
-	},
+    return order;
+  },
+  // ADMIN gán tài xế
+  async assignDriver(orderId, driverId) {
+    // Kiểm tra driver tồn tại
+    const driver = await prisma.driver.findUnique({
+      where: { id: Number(driverId) },
+    });
+    if (!driver) {
+      throw new Error("Driver không tồn tại");
+    }
 
-	async getOrderDetail(orderId, userId) {
-		return prisma.order.findFirst({
-			where: { id: orderId, userId },
-			include: {
-				orderItem: {
-					include: {
-						product: { include: { category: true } },
-						combo: true,
-					},
-				},
-				branch: true,
-				driver: true,
-			},
-		});
-	},
+    // Cập nhật trạng thái driver -> ON_DELIVERY
+    await prisma.driver.update({
+      where: { id: Number(driverId) },
+      data: { status: "ON_DELIVERY" },
+    });
 
-	async getAdminOrderDetail(orderId) {
-		return prisma.order.findUnique({
-			where: { id: orderId },
-			include: {
-				orderItem: {
-					include: {
-						product: { include: { category: true } },
-						combo: true,
-					},
-				},
-				branch: true,
-				user: true,
-				driver: true,
-			},
-		});
-	},
+    // Cập nhật order -> gán driver + status DRIVER_ASSIGNED
+    const order = await prisma.order.update({
+      where: { id: Number(orderId) },
+      data: {
+        driverId: Number(driverId),
+        status: "DRIVER_ASSIGNED",
+      },
+      include: {
+        orderItem: true,
+        user: true,
+        branch: true,
+        driver: true,
+      },
+    });
 
-	async updateStatus(orderId, status) {
-		const validStatuses = ["PENDING", "ACCEPTED", "DRIVER_ASSIGNED", "DELIVERED", "CANCELLED"];
-		if (!validStatuses.includes(status)) {
-			throw new Error(`Status khong hop le. Chi chap nhan: ${validStatuses.join(", ")}`);
-		}
-
-		if (status === "DELIVERED") {
-			const currentOrder = await prisma.order.findUnique({
-				where: { id: Number(orderId) },
-			});
-			if (currentOrder?.driverId) {
-				await prisma.driver.update({
-					where: { id: currentOrder.driverId },
-					data: { status: "AVAILABLE" },
-				});
-			}
-		}
-
-		return prisma.order.update({
-			where: { id: Number(orderId) },
-			data: { status },
-			include: {
-				orderItem: true,
-				user: true,
-				branch: true,
-				driver: true,
-			},
-		});
-	},
-
-	async assignDriver(orderId, driverId) {
-		const driver = await prisma.driver.findUnique({
-			where: { id: Number(driverId) },
-		});
-		if (!driver) {
-			throw new Error("Driver khong ton tai");
-		}
-
-		await prisma.driver.update({
-			where: { id: Number(driverId) },
-			data: { status: "ON_DELIVERY" },
-		});
-
-		return prisma.order.update({
-			where: { id: Number(orderId) },
-			data: {
-				driverId: Number(driverId),
-				status: "DRIVER_ASSIGNED",
-			},
-			include: {
-				orderItem: true,
-				user: true,
-				branch: true,
-				driver: true,
-			},
-		});
-	},
+    return order;
+  },
 };

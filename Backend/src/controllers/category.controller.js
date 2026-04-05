@@ -1,5 +1,7 @@
 import { ApiResponse } from "../configs/apiResponse.js";
-import { categoryService } from "../services/category.service.js";
+import * as categoryServiceModule from "../services/category.service.js";
+
+const categoryService = categoryServiceModule.categoryService;
 
 export const categoryController = {
   async getAllCategories(req, res) {

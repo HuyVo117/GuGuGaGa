@@ -1,5 +1,7 @@
-import { branchService } from "../services/branch.service.js";
+import * as branchServiceModule from "../services/branch.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const branchService = branchServiceModule.branchService;
 
 export const branchController = {
   async getAll(req, res) {

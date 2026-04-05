@@ -1,5 +1,7 @@
-import { shipperService } from "../services/shipper.service.js";
+import * as shipperServiceModule from "../services/shipper.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const shipperService = shipperServiceModule.shipperService;
 
 export const shipperController = {
   login: async (req, res) => {
@@ -9,6 +11,37 @@ export const shipperController = {
       return ApiResponse.success(res, result, "Đăng nhập thành công");
     } catch (error) {
       return ApiResponse.error(res, error, 401);
+    }
+  },
+
+  getAvailableOrders: async (req, res) => {
+    try {
+      const orders = await shipperService.getAvailableOrders();
+      return ApiResponse.success(res, orders, "Lấy danh sách đơn có thể nhận thành công");
+    } catch (error) {
+      return ApiResponse.error(res, error);
+    }
+  },
+
+  acceptOrder: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const driverId = req.user.id;
+
+      const order = await shipperService.acceptOrder(id, driverId);
+      return ApiResponse.success(res, order, "Nhận đơn thành công");
+    } catch (error) {
+      return ApiResponse.error(res, error);
+    }
+  },
+
+  getMyOrders: async (req, res) => {
+    try {
+      const driverId = req.user.id;
+      const orders = await shipperService.getMyOrders(driverId);
+      return ApiResponse.success(res, orders, "Lấy danh sách đơn của tài xế thành công");
+    } catch (error) {
+      return ApiResponse.error(res, error);
     }
   },
 

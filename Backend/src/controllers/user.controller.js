@@ -1,6 +1,8 @@
-import { userService } from "../services/user.service.js";
+import * as userServiceModule from "../services/user.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
 import bcrypt from "bcryptjs";
+
+const userService = userServiceModule.userService;
 export const userController = {
   async getAll(req, res) {
     try {

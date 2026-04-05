@@ -1,8 +1,4 @@
-import {
-  uploadImageProductService,
-  deleteImageService,
-  uploadImageComboService,
-} from "../services/upload.service.js";
+import * as uploadService from "../services/upload.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
 export const uploadImageProduct = async (req, res) => {
   try {
@@ -10,7 +6,7 @@ export const uploadImageProduct = async (req, res) => {
       return ApiResponse.error(res, { message: "No file uploaded" }, 400);
     }
     console.log("FILE RECEIVED:", req.file);
-    const result = await uploadImageProductService(req.file.path);
+    const result = await uploadService.uploadImageProductService(req.file.path);
 
     // Delete temp file
     // fs.unlinkSync(req.file.path); // Assuming fs is imported or handled in service.
@@ -36,7 +32,7 @@ export const uploadImageCombo = async (req, res) => {
       return ApiResponse.error(res, { message: "No file uploaded" }, 400);
     }
 
-    const result = await uploadImageComboService(req.file.path);
+    const result = await uploadService.uploadImageComboService(req.file.path);
 
     return ApiResponse.success(
       res,
@@ -58,7 +54,7 @@ export const deleteImage = async (req, res) => {
       return ApiResponse.error(res, { message: "public_id is required" }, 400);
     }
 
-    await deleteImageService(public_id);
+    await uploadService.deleteImageService(public_id);
 
     return ApiResponse.success(res, null, "Image deleted");
   } catch (err) {

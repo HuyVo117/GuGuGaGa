@@ -45,6 +45,7 @@ Admin mac dinh chay tai `http://localhost:5173`.
 
 ```bash
 cd gugugaga
+copy .env.example .env
 flutter pub get
 flutter run
 ```
@@ -53,6 +54,7 @@ flutter run
 
 ```bash
 cd "gugugaga shipper"
+copy .env.example .env
 flutter pub get
 flutter run
 ```

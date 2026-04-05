@@ -1,5 +1,7 @@
-import { comboService } from "../services/combo.service.js";
+import * as comboServiceModule from "../services/combo.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const comboService = comboServiceModule.comboService;
 
 export const comboController = {
   async getAll(req, res) {

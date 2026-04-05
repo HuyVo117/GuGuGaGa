@@ -1,6 +1,9 @@
-import { orderService } from "../services/order.service.js";
-import { cartService } from "../services/cart.service.js";
+import * as orderServiceModule from "../services/order.service.js";
+import * as cartServiceModule from "../services/cart.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const orderService = orderServiceModule.orderService;
+const cartService = cartServiceModule.cartService;
 
 export const orderController = {
   // Lấy tất cả đơn hàng (ADMIN)

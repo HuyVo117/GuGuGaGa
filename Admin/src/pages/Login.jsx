@@ -16,7 +16,7 @@ export default function Login() {
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
-            ChickenGoo Management
+            GuGuGaGa Management
           </h1>
           <p className="text-gray-600">Đăng nhập vào hệ thống quản lý</p>
         </div>
@@ -127,7 +127,7 @@ export default function Login() {
         {/* Footer */}
         <div className="text-center mt-6 text-sm text-gray-600">
           <p>
-            © 2025 ChickenGoo Management. All rights reserved. 23IT_B002 &&
+            © 2025 GuGuGaGa Management. All rights reserved. 23IT_B002 &&
             23IT.B019
           </p>
         </div>

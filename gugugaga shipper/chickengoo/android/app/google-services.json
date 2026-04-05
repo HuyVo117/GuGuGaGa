@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "39143720854",
+    "project_id": "newapp-bd55011a",
+    "storage_bucket": "newapp-bd55011a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39143720854:android:9fd455341ebeb46eba3fb7",
+        "android_client_info": {
+          "package_name": "com.example.GuGuGaGa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1D99SzMiF6V8YSZJk4139olzfoPrfun0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

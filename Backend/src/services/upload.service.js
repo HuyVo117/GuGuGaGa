@@ -1,19 +1,15 @@
 import cloudinary from "../configs/cloudinary.js";
 
-export async function deleteImageService(publicId) {
-	if (!publicId) return null;
-
-	if (!cloudinary?.uploader?.destroy) {
-		return { result: "skipped" };
-	}
-
-	try {
-		return await cloudinary.uploader.destroy(publicId);
-	} catch {
-		return { result: "failed" };
-	}
-}
-
-export const uploadService = {
-	deleteImageService,
+export const uploadImageProductService = async (filePath) => {
+  return await cloudinary.uploader.upload(filePath, {
+    folder: "products/",
+  });
+};
+export const uploadImageComboService = async (filePath) => {
+  return await cloudinary.uploader.upload(filePath, {
+    folder: "combo/",
+  });
+};
+export const deleteImageService = async (public_id) => {
+  return await cloudinary.uploader.destroy(public_id);
 };

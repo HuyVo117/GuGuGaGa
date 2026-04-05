@@ -1,104 +1,114 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import { config } from "../configs/env.js";
 import prisma from "../configs/prisma.js";
+import { config } from "../configs/env.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export const authService = {
-	async signUp(email, password, role = "CUSTOMER", profile = {}) {
-		const emailExists = await prisma.user.findUnique({
-			where: { email },
-		});
-		if (emailExists) {
-			throw new Error("Email da duoc dang ky");
-		}
+  async signUp(name, phone, email, password) {
+    // 1. Kiểm tra email đã tồn tại chưa
+    const emailExists = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (emailExists) {
+      throw new Error("Email đã được đăng ký");
+    }
 
-		const phone = (profile.phone || "").trim();
-		if (!phone) {
-			throw new Error("Phone la bat buoc");
-		}
+    // 2. Kiểm tra phone đã tồn tại chưa
+    const phoneExists = await prisma.user.findUnique({
+      where: { phone },
+    });
+    if (phoneExists) {
+      throw new Error("Số điện thoại đã được đăng ký");
+    }
 
-		const phoneExists = await prisma.user.findUnique({
-			where: { phone },
-		});
-		if (phoneExists) {
-			throw new Error("So dien thoai da duoc dang ky");
-		}
+    // 3. Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
 
-		const passwordHash = await bcrypt.hash(password, 10);
+    // 4. Tạo user mới
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        phone,
+        email,
+        passwordHash,
+        role: "CUSTOMER",
+      },
+    });
 
-		const newUser = await prisma.user.create({
-			data: {
-				name: profile.name || "Customer",
-				email,
-				phone,
-				passwordHash,
-				role,
-				address: profile.address || null,
-			},
-		});
+    // 5. Tạo token
+    const token = jwt.sign(
+      { userId: newUser.id, role: newUser.role },
+      config.jwtSecret,
+      {
+        expiresIn: "1d",
+      }
+    );
 
-		const token = jwt.sign(
-			{ userId: newUser.id, role: newUser.role },
-			config.jwtSecret,
-			{ expiresIn: "1d" }
-		);
+    // 6. Trả về controller
+    return {
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        phone: newUser.phone,
+        email: newUser.email,
+        role: newUser.role,
+        createdAt: newUser.createdAt,
+        updatedAt: newUser.updatedAt,
+      },
+      token,
+    };
+  },
 
-		return {
-			user: {
-				id: newUser.id,
-				name: newUser.name,
-				email: newUser.email,
-				phone: newUser.phone,
-				role: newUser.role,
-				createdAt: newUser.createdAt,
-			},
-			token,
-		};
-	},
+  async signIn(phone, password) {
+    // 1. Tìm user theo phone
+    const user = await prisma.user.findUnique({
+      where: { phone },
+    });
 
-	async signIn(email, password) {
-		const user = await prisma.user.findUnique({
-			where: { email },
-		});
+    // 2. Nếu không có user → báo lỗi
+    if (!user) {
+      throw new Error("Số điện thoại không tồn tại");
+    }
 
-		if (!user) {
-			throw new Error("Email khong ton tai");
-		}
+    // 3. Kiểm tra mật khẩu
+    const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordCorrect) {
+      throw new Error("Sai mật khẩu");
+    }
 
-		const isPasswordCorrect = await bcrypt.compare(password, user.passwordHash);
-		if (!isPasswordCorrect) {
-			throw new Error("Sai mat khau");
-		}
+    // 4. Tạo token
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      config.jwtSecret,
+      {
+        expiresIn: "1d",
+      }
+    );
 
-		const token = jwt.sign(
-			{ userId: user.id, role: user.role },
-			config.jwtSecret,
-			{ expiresIn: "1d" }
-		);
+    // 5. Trả dữ liệu về controller
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      token,
+    };
+  },
 
-		return {
-			user: {
-				id: user.id,
-				name: user.name,
-				email: user.email,
-				phone: user.phone,
-				role: user.role,
-				createdAt: user.createdAt,
-			},
-			token,
-		};
-	},
-
-	async updateProfile(userId, data) {
-		const updatedUser = await prisma.user.update({
-			where: { id: userId },
-			data: {
-				...(data.name ? { name: data.name } : {}),
-				...(data.email ? { email: data.email } : {}),
-				...(data.phone ? { phone: data.phone } : {}),
-				...(data.address !== undefined ? { address: data.address } : {}),
-			},
-		});
-		return updatedUser;
-	},
+  async updateProfile(userId, data) {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        address: data.address,
+        email: data.email,
+      },
+    });
+    return updatedUser;
+  },
 };

@@ -1,5 +1,7 @@
-import { authService } from "../services/auth.service.js";
+import * as authServiceModule from "../services/auth.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const authService = authServiceModule.authService;
 
 export const userAuthController = {
   async signUp(req, res) {

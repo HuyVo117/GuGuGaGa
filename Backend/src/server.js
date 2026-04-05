@@ -1,35 +1,44 @@
-import cors from 'cors';
-import dotenv from 'dotenv';
-import express from 'express';
-import adminRouter from './routes/admin.route.js';
-import userRouter from './routes/user.route.js';
-import shipperRouter from './routes/shipper.route.js';
-import publicRouter from './routes/public.route.js';
+import express from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 
-dotenv.config();
+import routerUser from "./routes/user.route.js";
+import routerAdmin from "./routes/admin.route.js";
 
 const app = express();
-const port = Number(process.env.PORT || 5000);
 
-app.use(cors());
+// Middleware
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
-app.get('/', (req, res) => {
-	res.json({
-		message: 'GuGuGaGa Backend is running (src architecture)',
-		health: '/health',
-	});
+import routerPublic from "./routes/public.route.js";
+
+// Routes
+
+// Admin routes (gọi chung routerAdmin)
+app.use("/api/admin", routerAdmin);
+
+// User routes (gọi chung routerUser)
+// User routes (gọi chung routerUser)
+app.use("/api/user", routerUser);
+
+import routerShipper from "./routes/shipper.route.js";
+app.use("/api/shipper", routerShipper);
+
+// Public routes
+app.use("/api", routerPublic);
+
+// Root
+app.get("/", (req, res) => {
+  res.send("API is running...");
 });
 
-app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
-	res.status(204).send();
-});
-
-app.use('/api/admin', adminRouter);
-app.use('/api/user', userRouter);
-app.use('/api/shipper', shipperRouter);
-app.use('/api/public', publicRouter);
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'backend-src' }));
-app.listen(port, () => {
-	console.log(`[src] Backend listening on http://localhost:${port}`);
-});
+// Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

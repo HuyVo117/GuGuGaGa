@@ -1,5 +1,7 @@
-import { productService } from "../services/product.service.js";
+import * as productServiceModule from "../services/product.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const productService = productServiceModule.productService;
 
 export const productController = {
   async getAll(req, res) {

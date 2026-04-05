@@ -1,5 +1,7 @@
-import { driverService } from "../services/driver.service.js";
+import * as driverServiceModule from "../services/driver.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
+
+const driverService = driverServiceModule.driverService;
 
 export const driverController = {
   async getAll(req, res) {

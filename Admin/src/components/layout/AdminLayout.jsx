@@ -82,7 +82,7 @@ export default function AdminLayout() {
         <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 shrink-0">
           {sidebarOpen && (
             <h1 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-              ChickenGoo Management
+              GuGuGaGa Management
             </h1>
           )}
           <button
