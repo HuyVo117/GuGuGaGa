@@ -5,9 +5,10 @@ export const cartService = {
 		return prisma.cart.findFirst({
 			where: { userId },
 			include: {
-				cartItems: {
+				cartItem: {
 					include: {
 						product: true,
+						combo: true,
 					},
 				},
 			},
@@ -17,12 +18,18 @@ export const cartService = {
 	async getOrCreateCart(userId) {
 		let cart = await this.getCart(userId);
 		if (!cart) {
+			const firstBranch = await prisma.branch.findFirst({ orderBy: { id: "asc" } });
+			if (!firstBranch) {
+				throw new Error("Chua co chi nhanh de tao gio hang");
+			}
+
 			cart = await prisma.cart.create({
-				data: { userId },
+				data: { userId, branchId: firstBranch.id, totalAmount: 0 },
 				include: {
-					cartItems: {
+					cartItem: {
 						include: {
 							product: true,
+							combo: true,
 						},
 					},
 				},
@@ -39,15 +46,31 @@ export const cartService = {
 		});
 
 		if (existingItem) {
-			return prisma.cartItem.update({
+			const updated = await prisma.cartItem.update({
 				where: { id: existingItem.id },
 				data: { quantity: existingItem.quantity + Number(quantity) },
 			});
+
+			await this.recalculateTotal(cart.id);
+			return updated;
 		}
 
-		return prisma.cartItem.create({
-			data: { cartId: cart.id, productId: Number(productId), quantity: Number(quantity) },
+		const product = await prisma.product.findUnique({ where: { id: Number(productId) } });
+		if (!product) {
+			throw new Error("Product not found");
+		}
+
+		const created = await prisma.cartItem.create({
+			data: {
+				cartId: cart.id,
+				productId: Number(productId),
+				quantity: Number(quantity),
+				price: Number(product.price),
+			},
 		});
+
+		await this.recalculateTotal(cart.id);
+		return created;
 	},
 
 	async updateItemQuantity(userId, itemId, quantity) {
@@ -59,10 +82,13 @@ export const cartService = {
 			throw new Error("Cart item not found");
 		}
 
-		return prisma.cartItem.update({
+		const updated = await prisma.cartItem.update({
 			where: { id: item.id },
 			data: { quantity: Number(quantity) },
 		});
+
+		await this.recalculateTotal(cart.id);
+		return updated;
 	},
 
 	async removeItem(userId, itemId) {
@@ -77,6 +103,24 @@ export const cartService = {
 		await prisma.cartItem.delete({
 			where: { id: item.id },
 		});
+		await this.recalculateTotal(cart.id);
 		return { removed: true };
+	},
+
+	async recalculateTotal(cartId) {
+		const items = await prisma.cartItem.findMany({
+			where: { cartId },
+			include: { product: true, combo: true },
+		});
+
+		const totalAmount = items.reduce((sum, item) => {
+			const basePrice = item.product?.price ?? item.combo?.price ?? item.price ?? 0;
+			return sum + Number(basePrice) * Number(item.quantity);
+		}, 0);
+
+		await prisma.cart.update({
+			where: { id: cartId },
+			data: { totalAmount },
+		});
 	},
 };

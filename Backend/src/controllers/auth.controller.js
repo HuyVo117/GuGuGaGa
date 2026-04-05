@@ -4,13 +4,17 @@ import { authService } from "../services/auth.service.js";
 export const userAuthController = {
 	async signUp(req, res) {
 		try {
-			const { email, password } = req.body;
+			const { email, password, name, phone, address } = req.body;
 
-			if (!email || !password) {
+			if (!email || !password || !phone) {
 				return ApiResponse.error(res, new Error("Vui long dien day du"), 400);
 			}
 
-			const result = await authService.signUp(email, password, "USER");
+			const result = await authService.signUp(email, password, "CUSTOMER", {
+				name,
+				phone,
+				address,
+			});
 			return ApiResponse.success(res, result, "Dang ky thanh cong", 201);
 		} catch (err) {
 			return ApiResponse.error(res, err, 400);

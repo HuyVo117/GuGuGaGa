@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuthUser } from "./hooks/useAuthUser";
 import {
+  assignDriverToOrder,
   createAdminProduct,
   deleteAdminProduct,
   getAdminBranches,
@@ -17,7 +18,7 @@ import {
 } from "./authService";
 
 function LoginPage() {
-  const [email, setEmail] = useState("admin@gugugaga.vn");
+  const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("123456");
   const [error, setError] = useState("");
 
@@ -112,7 +113,12 @@ function Dashboard() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: ({ id, payload }) => updateOrderStatus(id, payload),
+    mutationFn: ({ id, payload, action }) => {
+      if (action === "assign-driver") {
+        return assignDriverToOrder(id, payload.driverId);
+      }
+      return updateOrderStatus(id, payload);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
     },
@@ -127,13 +133,14 @@ function Dashboard() {
     });
   };
 
-  const assignDriverToOrder = (orderId) => {
+  const handleAssignDriverToOrder = (orderId) => {
     const selectedDriverId = Number(driverSelection[orderId] || 0);
     if (!selectedDriverId) return;
 
     updateOrderMutation.mutate({
       id: orderId,
       payload: { driverId: selectedDriverId },
+      action: "assign-driver",
     });
   };
 
@@ -214,15 +221,15 @@ function Dashboard() {
                 style={{ border: "1px solid #ddd", borderRadius: 6, padding: 10, marginBottom: 8 }}
               >
                 <p>
-                  <strong>Don #{item.id}</strong> - {item.statusOrder} - User: {item.user?.email}
+                  <strong>Don #{item.id}</strong> - {item.status} - User: {item.user?.email}
                 </p>
-                <p>Driver: {item.driver?.email || "Chua gan"}</p>
-                <p>Tong tien: {item.bill?.total || 0} VND</p>
+                <p>Driver: {item.driver?.name || item.driver?.phone || "Chua gan"}</p>
+                <p>Tong tien: {item.totalAmount || 0} VND</p>
                 <button
                   onClick={() =>
                     updateOrderMutation.mutate({
                       id: item.id,
-                      payload: { statusOrder: "CONFIRMED" },
+                      payload: { status: "ACCEPTED" },
                     })
                   }
                   style={{ marginRight: 8 }}
@@ -233,7 +240,7 @@ function Dashboard() {
                   onClick={() =>
                     updateOrderMutation.mutate({
                       id: item.id,
-                      payload: { statusOrder: "DELIVERING" },
+                      payload: { status: "DRIVER_ASSIGNED" },
                     })
                   }
                   style={{ marginRight: 8 }}
@@ -244,7 +251,7 @@ function Dashboard() {
                   onClick={() =>
                     updateOrderMutation.mutate({
                       id: item.id,
-                      payload: { statusOrder: "DELIVERED" },
+                      payload: { status: "DELIVERED" },
                     })
                   }
                   style={{ marginRight: 8 }}
@@ -267,11 +274,11 @@ function Dashboard() {
                       <option value="">Chon driver</option>
                       {drivers.map((driver) => (
                         <option key={driver.id} value={driver.id}>
-                          {driver.email} ({driver.statusDriver})
+                          {driver.name} - {driver.phone} ({driver.status})
                         </option>
                       ))}
                     </select>
-                    <button onClick={() => assignDriverToOrder(item.id)}>Gan driver</button>
+                    <button onClick={() => handleAssignDriverToOrder(item.id)}>Gan driver</button>
                   </>
                 ) : null}
               </div>
@@ -287,7 +294,7 @@ function Dashboard() {
             key={item.id}
             style={{ border: "1px solid #ddd", borderRadius: 6, padding: 10, marginBottom: 8 }}
           >
-            <strong>{item.email}</strong> - {item.statusDriver}
+            <strong>{item.name}</strong> - {item.phone} - {item.status}
           </div>
         ))}
       </section>
@@ -302,7 +309,7 @@ function Dashboard() {
                 key={item.id}
                 style={{ border: "1px solid #ddd", borderRadius: 6, padding: 10, marginBottom: 8 }}
               >
-                <strong>{item.email}</strong> - role: {item.role}
+                <strong>{item.name}</strong> - {item.phone} - {item.email} - role: {item.role}
               </div>
             ))
           : null}

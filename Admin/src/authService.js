@@ -1,28 +1,33 @@
 import api from "./axios";
 
 export async function loginAdmin(email, password) {
-  const { data } = await api.post("/admin/auth/login", { email, password });
-  localStorage.setItem("admin_token", data.token);
-  return data;
+  const { data } = await api.post("/admin/auth/sign-in", { email, password });
+  localStorage.setItem("admin_token", data.data.token);
+  return data.data;
 }
 
 export async function getAuthUser() {
   const { data } = await api.get("/admin/auth/me");
-  return data.user;
+  return data.data.user;
 }
 
-export function logoutAdmin() {
+export async function logoutAdmin() {
+  try {
+    await api.post("/admin/auth/sign-out");
+  } catch {
+    // Ignore API errors and still clear local token.
+  }
   localStorage.removeItem("admin_token");
 }
 
 export async function getAdminCategories() {
   const { data } = await api.get("/admin/categories");
-  return data.items;
+  return data.data;
 }
 
 export async function getAdminProducts() {
   const { data } = await api.get("/admin/products");
-  return data.items;
+  return data.data;
 }
 
 export async function createAdminProduct(payload) {
@@ -36,25 +41,30 @@ export async function deleteAdminProduct(id) {
 
 export async function getAdminOrders() {
   const { data } = await api.get("/admin/orders");
-  return data.items;
+  return data.data;
 }
 
 export async function getAdminDrivers() {
   const { data } = await api.get("/admin/drivers");
-  return data.items;
+  return data.data;
 }
 
 export async function getAdminUsers() {
   const { data } = await api.get("/admin/users");
-  return data.items;
+  return data.data;
 }
 
 export async function getAdminBranches() {
   const { data } = await api.get("/admin/branches");
-  return data.items;
+  return data.data;
 }
 
 export async function updateOrderStatus(id, payload) {
   const { data } = await api.patch(`/admin/orders/${id}/status`, payload);
-  return data;
+  return data.data;
+}
+
+export async function assignDriverToOrder(id, driverId) {
+  const { data } = await api.patch(`/admin/orders/${id}/assign-driver`, { driverId });
+  return data.data;
 }

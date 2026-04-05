@@ -4,7 +4,7 @@ export const orderService = {
 	async getAll() {
 		return prisma.order.findMany({
 			include: {
-				orderItems: {
+				orderItem: {
 					include: {
 						product: { include: { category: true } },
 						combo: true,
@@ -13,7 +13,6 @@ export const orderService = {
 				user: true,
 				branch: true,
 				driver: true,
-				bill: true,
 			},
 			orderBy: { id: "desc" },
 		});
@@ -25,55 +24,69 @@ export const orderService = {
 		// Demo fallback branch: use branch id 1 if cart has no branch context.
 		const branchId = 1;
 
-		const productIds = cart.cartItems.map((item) => item.productId);
+		const productIds = cart.cartItem.map((item) => item.productId).filter(Boolean);
 		const products = await prisma.product.findMany({
 			where: { id: { in: productIds } },
 		});
 		const productMap = new Map(products.map((p) => [p.id, p]));
 
-		const items = cart.cartItems.map((item) => {
-			const product = productMap.get(item.productId);
-			if (!product) {
-				throw new Error(`Product ${item.productId} not found`);
+		const items = cart.cartItem.map((item) => {
+			if (item.productId) {
+				const product = productMap.get(item.productId);
+				if (!product) {
+					throw new Error(`Product ${item.productId} not found`);
+				}
+				return {
+					productId: item.productId,
+					quantity: item.quantity,
+					price: item.price,
+				};
 			}
-			return {
-				productId: item.productId,
-				quantity: item.quantity,
-				price: product.price,
-			};
+
+			if (item.comboId) {
+				return {
+					comboId: item.comboId,
+					quantity: item.quantity,
+					price: item.price,
+				};
+			}
+
+			throw new Error("Cart item khong hop le");
 		});
 
 		const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
 		const order = await prisma.$transaction(async (tx) => {
+			const user = await tx.user.findUnique({ where: { id: userId } });
+			if (!user) {
+				throw new Error("User khong ton tai");
+			}
+
 			const created = await tx.order.create({
 				data: {
 					userId,
 					branchId,
+					totalAmount,
+					status: "PENDING",
 					paymentMethod,
-					orderItems: {
+					deliveryAddress: user.address || "Chua cap nhat dia chi",
+					deliveryPhone: user.phone,
+					orderItem: {
 						create: items,
 					},
 				},
 				include: {
-					orderItems: true,
-				},
-			});
-
-			await tx.bill.create({
-				data: {
-					orderId: created.id,
-					total: totalAmount,
+					orderItem: true,
 				},
 			});
 
 			await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
+			await tx.cart.update({ where: { id: cart.id }, data: { totalAmount: 0 } });
 
 			return tx.order.findUnique({
 				where: { id: created.id },
 				include: {
-					orderItems: { include: { product: true, combo: true } },
-					bill: true,
+					orderItem: { include: { product: true, combo: true } },
 					branch: true,
 				},
 			});
@@ -86,14 +99,14 @@ export const orderService = {
 		return prisma.order.findMany({
 			where: { userId },
 			include: {
-				orderItems: {
+				orderItem: {
 					include: {
 						product: { include: { category: true } },
 						combo: true,
 					},
 				},
 				branch: true,
-				bill: true,
+				driver: true,
 			},
 			orderBy: { id: "desc" },
 		});
@@ -103,14 +116,14 @@ export const orderService = {
 		return prisma.order.findFirst({
 			where: { id: orderId, userId },
 			include: {
-				orderItems: {
+				orderItem: {
 					include: {
 						product: { include: { category: true } },
 						combo: true,
 					},
 				},
 				branch: true,
-				bill: true,
+				driver: true,
 			},
 		});
 	},
@@ -119,7 +132,7 @@ export const orderService = {
 		return prisma.order.findUnique({
 			where: { id: orderId },
 			include: {
-				orderItems: {
+				orderItem: {
 					include: {
 						product: { include: { category: true } },
 						combo: true,
@@ -128,20 +141,12 @@ export const orderService = {
 				branch: true,
 				user: true,
 				driver: true,
-				bill: true,
 			},
 		});
 	},
 
 	async updateStatus(orderId, status) {
-		const validStatuses = [
-			"PENDING",
-			"CONFIRMED",
-			"PREPARING",
-			"DELIVERING",
-			"DELIVERED",
-			"CANCELED",
-		];
+		const validStatuses = ["PENDING", "ACCEPTED", "DRIVER_ASSIGNED", "DELIVERED", "CANCELLED"];
 		if (!validStatuses.includes(status)) {
 			throw new Error(`Status khong hop le. Chi chap nhan: ${validStatuses.join(", ")}`);
 		}
@@ -153,20 +158,19 @@ export const orderService = {
 			if (currentOrder?.driverId) {
 				await prisma.driver.update({
 					where: { id: currentOrder.driverId },
-					data: { statusDriver: "ONLINE" },
+					data: { status: "AVAILABLE" },
 				});
 			}
 		}
 
 		return prisma.order.update({
 			where: { id: Number(orderId) },
-			data: { statusOrder: status },
+			data: { status },
 			include: {
-				orderItems: true,
+				orderItem: true,
 				user: true,
 				branch: true,
 				driver: true,
-				bill: true,
 			},
 		});
 	},
@@ -181,21 +185,20 @@ export const orderService = {
 
 		await prisma.driver.update({
 			where: { id: Number(driverId) },
-			data: { statusDriver: "BUSY" },
+			data: { status: "ON_DELIVERY" },
 		});
 
 		return prisma.order.update({
 			where: { id: Number(orderId) },
 			data: {
 				driverId: Number(driverId),
-				statusOrder: "DELIVERING",
+				status: "DRIVER_ASSIGNED",
 			},
 			include: {
-				orderItems: true,
+				orderItem: true,
 				user: true,
 				branch: true,
 				driver: true,
-				bill: true,
 			},
 		});
 	},

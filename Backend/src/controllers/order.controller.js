@@ -33,7 +33,7 @@ export const orderController = {
 			const { paymentMethod = "COD" } = req.body;
 
 			const cart = await cartService.getCart(userId);
-			if (!cart || cart.cartItems.length === 0) {
+			if (!cart || cart.cartItem.length === 0) {
 				return ApiResponse.error(res, new Error("Gio hang trong, khong the tao don hang."), 400);
 			}
 
@@ -72,7 +72,8 @@ export const orderController = {
 
 	async updateStatus(req, res) {
 		try {
-			const order = await orderService.updateStatus(req.params.id, req.body.status);
+			const status = req.body.status || req.body.statusOrder;
+			const order = await orderService.updateStatus(req.params.id, status);
 			return ApiResponse.success(res, order, "Cap nhat trang thai thanh cong");
 		} catch (error) {
 			return ApiResponse.error(res, error);
