@@ -6,7 +6,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
+    "dev:src": "nodemon src/server.js",
     "start": "node server.js",
+    "start:src": "node src/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "seed": "node prisma/seed.js",
