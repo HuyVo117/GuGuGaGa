@@ -1,4 +1,8 @@
-import { Router } from 'express';
+import { Router } from "express";
+import { shipperController } from "../../controllers/shipper.controller.js";
+
 const router = Router();
-router.get('/', (req, res) => res.status(501).json({ message: 'TODO route' }));
+
+router.post("/login", shipperController.login);
+
 export default router;
