@@ -1,14 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAuthUser } from "../authService";
+import { authService } from "../services/authService.js";
 
-export function useAuthUser() {
-  const hasToken = Boolean(localStorage.getItem("admin_token"));
-
-  return useQuery({
-    queryKey: ["auth-user"],
-    queryFn: getAuthUser,
-    enabled: hasToken,
-    staleTime: 30 * 1000,
+const useAuthUser = () => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["authUser"],
+    queryFn: authService.getAuthUser,
     retry: false,
+    refetchOnWindowFocus: false,
   });
-}
+
+  return {
+    authUser: data,
+    isLoading,
+    error,
+  };
+};
+
+export default useAuthUser;

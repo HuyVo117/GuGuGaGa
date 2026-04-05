@@ -1,8 +1,21 @@
-import { useMutation } from "@tanstack/react-query";
-import { loginAdmin } from "../authService";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { authService } from "../services/authService.js";
 
-export function useSignIn() {
-  return useMutation({
-    mutationFn: ({ email, password }) => loginAdmin(email, password),
+const useSignIn = () => {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (loginData) => authService.signIn(loginData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["authUser"] });
+    },
   });
-}
+
+  return {
+    loginMutation: mutation.mutate,
+    isPending: mutation.isLoading,
+    error: mutation.error,
+  };
+};
+
+export default useSignIn;
