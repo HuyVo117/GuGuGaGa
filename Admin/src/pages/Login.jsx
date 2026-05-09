@@ -142,8 +142,7 @@ export default function Login() {
         {/* Footer */}
         <div className="text-center mt-6 text-sm text-gray-600 dark:text-slate-400">
           <p>
-            © 2025 GuGuGaGa Management. All rights reserved. 23IT_B002 &&
-            23IT.B019
+            © 2025 GuGuGaGa Management. All rights reserved.
           </p>
         </div>
       </div>

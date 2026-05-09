@@ -185,21 +185,6 @@ export default function ProductDialog({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mô tả
-              </label>
-              <textarea
-                value={formData.desc}
-                onChange={(e) =>
-                  setFormData({ ...formData, desc: e.target.value })
-                }
-                rows={4}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Nhập mô tả món ăn..."
-              />
-            </div>
-
             <div className="flex gap-3 pt-4">
               <Dialog.Close asChild>
                 <button

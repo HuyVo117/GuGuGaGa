@@ -7,12 +7,15 @@ class AppConstants {
   static String get openCageApiKey => dotenv.env['OPENCAGE_API_KEY'] ?? '';
   static String get baseUrl {
     final envUrl = dotenv.env['BASE_URL'];
-    if (envUrl != null && envUrl.isNotEmpty) {
-      return envUrl;
+    if (kIsWeb) {
+      if (envUrl != null && envUrl.isNotEmpty && !envUrl.contains('10.0.2.2')) {
+        return envUrl;
+      }
+      return 'http://localhost:5000/api';
     }
 
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl;
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
