@@ -162,7 +162,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 }
 
                 // Update bounds to include current position and destination
-                final dynamicBounds = LatLngBounds.fromPoints([currentPos, orderPos]);
+                final samePoint = (currentPos.latitude == orderPos.latitude && currentPos.longitude == orderPos.longitude);
 
                 // Fetch route if we have a valid position
                 if (snapshot.hasData) {
@@ -173,10 +173,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   options: MapOptions(
                     initialCenter: currentPos,
                     initialZoom: 15.0,
-                    initialCameraFit: CameraFit.bounds(
-                      bounds: dynamicBounds,
-                      padding: const EdgeInsets.all(50),
-                    ),
+                    initialCameraFit: samePoint
+                        ? null
+                        : CameraFit.bounds(
+                            bounds: LatLngBounds.fromPoints([currentPos, orderPos]),
+                            padding: const EdgeInsets.all(50),
+                          ),
                   ),
                   children: [
                     TileLayer(

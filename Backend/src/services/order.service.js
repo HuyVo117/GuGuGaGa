@@ -33,12 +33,13 @@ export const orderService = {
     // Tính tổng tiền từ cart luôn, không cần map lại
     const totalAmount = cart.totalAmount;
 
-    // Tạo order
+    // Tạo order (tự động ACCEPTED để tài xế có thể nhận)
     const order = await prisma.order.create({
       data: {
         userId,
         branchId: cart.branchId,
         totalAmount,
+        status: "ACCEPTED",
         paymentMethod,
         deliveryAddress,
         deliveryPhone,

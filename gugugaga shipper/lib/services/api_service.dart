@@ -57,6 +57,48 @@ class ApiService {
     throw Exception('Lấy danh sách đơn hàng thất bại: ${response.statusCode} - ${response.body}');
   }
 
+  Future<List<dynamic>> getAvailableOrders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    
+    if (token == null) throw Exception('Chưa đăng nhập');
+
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/shipper/orders/available'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return List<dynamic>.from(data['data'] ?? []);
+      }
+    }
+    return [];
+  }
+
+  Future<void> acceptOrder(int orderId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    if (token == null) throw Exception('Chưa đăng nhập');
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/shipper/orders/$orderId/accept'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Nhận đơn thất bại: ${response.body}');
+    }
+  }
+
   Future<void> updateOrderStatus(int orderId, String status) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
