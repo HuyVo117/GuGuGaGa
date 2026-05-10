@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../services/firebase_auth_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -28,6 +29,30 @@ class AuthProvider with ChangeNotifier {
       _user = User.fromJson(data['user']);
       _token = data['token'];
       _isAuthenticated = true;
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    try {
+      // Dùng Firebase Auth signInWithPopup trực tiếp (hoạt động tốt trên web)
+      final googleProvider = firebase_auth.GoogleAuthProvider();
+      googleProvider.addScope('email');
+
+      final userCredential = await firebase_auth.FirebaseAuth.instance.signInWithPopup(googleProvider);
+      final firebaseIdToken = await userCredential.user!.getIdToken();
+
+      // Gửi ID Token lên Backend để nhận JWT
+      final data = await _apiService.googleSignIn(firebaseIdToken!);
+      _user = User.fromJson(data['user']);
+      _token = data['token'];
+      _isAuthenticated = true;
+
+      // Đăng xuất Firebase (dùng JWT của backend)
+      await firebase_auth.FirebaseAuth.instance.signOut();
+
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -93,19 +118,10 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> register(String name, String phone, String email, String password) async {
     try {
-      // Ensure Firebase user is signed in (verified)
-      if (_firebaseAuthService.currentUser == null) {
-        throw Exception('Phone number not verified');
-      }
-      
       final data = await _apiService.register(name, phone, email, password);
       _user = User.fromJson(data['user']);
       _token = data['token'];
       _isAuthenticated = true;
-      
-      // Sign out from Firebase as we use our own backend auth
-      await _firebaseAuthService.signOut();
-      
       notifyListeners();
     } catch (e) {
       rethrow;

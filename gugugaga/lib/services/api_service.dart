@@ -56,6 +56,22 @@ class ApiService {
     throw Exception('Đăng ký thất bại: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> googleSignIn(String idToken) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/user/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'idToken': idToken}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Đăng nhập Google thất bại: ${response.body}');
+  }
+
   Future<void> resetPassword(String phone, String newPassword, {String? token}) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) {

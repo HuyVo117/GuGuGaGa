@@ -46,46 +46,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      await authProvider.verifyPhone(
+      // Đăng ký trực tiếp với backend (không cần OTP)
+      await authProvider.register(
+        _nameController.text,
         _phoneController.text,
-        (verificationId) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            
-            // Navigate to OTP Screen
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => OTPScreen(
-                  phone: _phoneController.text,
-                  isRegistration: true,
-                  registrationData: {
-                    'name': _nameController.text,
-                    'phone': _phoneController.text,
-                    'email': _emailController.text,
-                    'password': _passwordController.text,
-                  },
-                ),
-              ),
-            );
-          }
-        },
-        (errorMessage) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Lỗi xác thực: $errorMessage'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
+        _emailController.text,
+        _passwordController.text,
       );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đăng ký thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Chuyển đến màn hình chính
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

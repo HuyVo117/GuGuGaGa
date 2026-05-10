@@ -78,20 +78,23 @@ export const userAuthController = {
     try {
       const userId = req.user.id;
       const updateData = req.body;
-      // Assuming userService exists and has update method. 
-      // If not, we might need to import userService or implement it in authService (less ideal).
-      // Let's check imports. We only have authService imported.
-      // We should probably use authService or import userService.
-      // For now, let's assume authService might handle it or we import userService.
-      // Checking imports... only authService.
-      // Let's add userService import if needed or use authService.
-      // Actually, let's wait to see service files first.
-      // But I need to write this file now.
-      // I'll use authService.updateProfile if I can add it there, or better, import userService.
-      // I will add the import in a separate chunk if needed, or just use authService for now and update authService.
-      // Let's use authService.updateProfile(userId, updateData).
       const updatedUser = await authService.updateProfile(userId, updateData);
       return ApiResponse.success(res, updatedUser, "Profile updated successfully");
+    } catch (err) {
+      return ApiResponse.error(res, err, 400);
+    }
+  },
+
+  async googleSignIn(req, res) {
+    try {
+      const { idToken } = req.body;
+
+      if (!idToken) {
+        return ApiResponse.error(res, new Error("Firebase ID Token is required"), 400);
+      }
+
+      const result = await authService.googleSignIn(idToken);
+      return ApiResponse.success(res, result, "Đăng nhập Google thành công");
     } catch (err) {
       return ApiResponse.error(res, err, 400);
     }

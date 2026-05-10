@@ -2,6 +2,7 @@ import db from "../configs/firestore.js";
 import { config } from "../configs/env.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import admin from "firebase-admin";
 
 const usersRef = db.collection("users");
 
@@ -99,6 +100,72 @@ export const authService = {
     };
   },
 
+  async googleSignIn(firebaseIdToken) {
+    // 1. Xác thực Firebase ID Token
+    const decodedToken = await admin.auth().verifyIdToken(firebaseIdToken);
+    const { email, name, uid } = decodedToken;
+
+    if (!email) {
+      throw new Error("Tài khoản Google không có email");
+    }
+
+    // 2. Tìm user theo email trong Firestore
+    const emailSnap = await usersRef.where("email", "==", email).limit(1).get();
+
+    let user;
+
+    if (!emailSnap.empty) {
+      // User đã tồn tại → đăng nhập
+      const doc = emailSnap.docs[0];
+      user = { id: doc.id, ...doc.data() };
+    } else {
+      // User chưa tồn tại → tạo mới
+      const now = new Date();
+      const docRef = await usersRef.add({
+        name: name || email.split("@")[0],
+        phone: "",
+        email,
+        passwordHash: "", // Google user không cần mật khẩu
+        role: "CUSTOMER",
+        address: null,
+        firebaseUid: uid,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      user = {
+        id: docRef.id,
+        name: name || email.split("@")[0],
+        phone: "",
+        email,
+        role: "CUSTOMER",
+        address: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
+    // 3. Tạo JWT token của hệ thống
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      config.jwtSecret,
+      { expiresIn: "7d" }
+    );
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        phone: user.phone || "",
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      token,
+    };
+  },
+
   async updateProfile(userId, data) {
     const userRef = usersRef.doc(userId);
     await userRef.update({
@@ -111,3 +178,4 @@ export const authService = {
     return { id: updated.id, ...updated.data() };
   },
 };
+
