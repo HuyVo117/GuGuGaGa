@@ -11,7 +11,6 @@ export const protectDriverRoute = async (req, res, next) => {
     let token;
 
     // 1. Lấy token từ header Authorization: Bearer <token>
-    console.log("Headers:", req.headers);
     if (req.headers.authorization?.startsWith("Bearer")) {
       token = req.headers.authorization.split(" ")[1];
     }

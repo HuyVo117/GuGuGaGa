@@ -73,25 +73,31 @@ export const shipperService = {
     return { driver, token };
   },
 
+  // Đơn hàng mới chưa có tài xế nhận (hiển thị cho tất cả tài xế)
   getAvailableOrders: async () => {
-    const snap = await ordersRef
-      .where("status", "==", "ACCEPTED")
-      .orderBy("createdAt", "desc")
-      .get();
+    // Dùng single-field query để tránh lỗi composite index
+    const snap = await ordersRef.where("status", "==", "ACCEPTED").get();
 
-    // Filter orders where driverId is null (Firestore doesn't support == null in compound queries well)
     const orders = [];
     for (const doc of snap.docs) {
       const data = doc.data();
+      // Chỉ lấy đơn chưa có tài xế
       if (!data.driverId) {
         const order = { id: doc.id, ...data };
         await populateOrder(order);
         orders.push(order);
       }
     }
+    // Sắp xếp theo thời gian mới nhất ở JS thay vì Firestore orderBy (tránh composite index)
+    orders.sort((a, b) => {
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt?._seconds ?? 0) * 1000;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt?._seconds ?? 0) * 1000;
+      return timeB - timeA;
+    });
     return orders;
   },
 
+  // Tài xế nhận đơn
   acceptOrder: async (orderId, driverId) => {
     const orderRef = ordersRef.doc(orderId);
     const orderDoc = await orderRef.get();
@@ -124,35 +130,55 @@ export const shipperService = {
     return order;
   },
 
+  // Tất cả đơn của tài xế (đã nhận + đã giao + ...)
   getMyOrders: async (driverId) => {
-    const snap = await ordersRef
-      .where("driverId", "==", driverId)
-      .orderBy("createdAt", "desc")
-      .get();
-    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    await Promise.all(orders.map(populateOrder));
+    const snap = await ordersRef.where("driverId", "==", driverId).get();
+    const orders = [];
+    for (const doc of snap.docs) {
+      const order = { id: doc.id, ...doc.data() };
+      await populateOrder(order);
+      orders.push(order);
+    }
+    orders.sort((a, b) => {
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt?._seconds ?? 0) * 1000;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt?._seconds ?? 0) * 1000;
+      return timeB - timeA;
+    });
     return orders;
   },
 
+  // Chỉ đơn đang giao (DRIVER_ASSIGNED) của tài xế
   getAssignedOrders: async (driverId) => {
-    const snap = await ordersRef
-      .where("driverId", "==", driverId)
-      .where("status", "==", "DRIVER_ASSIGNED")
-      .orderBy("createdAt", "desc")
-      .get();
-    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    await Promise.all(orders.map(populateOrder));
+    // Dùng single-field query + filter JS để tránh composite index
+    const snap = await ordersRef.where("driverId", "==", driverId).get();
+    const orders = [];
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (data.status === "DRIVER_ASSIGNED") {
+        const order = { id: doc.id, ...data };
+        await populateOrder(order);
+        orders.push(order);
+      }
+    }
+    orders.sort((a, b) => {
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : (a.createdAt?._seconds ?? 0) * 1000;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : (b.createdAt?._seconds ?? 0) * 1000;
+      return timeB - timeA;
+    });
     return orders;
   },
 
+  // Cập nhật trạng thái đơn hàng
   updateOrderStatus: async (orderId, driverId, status) => {
-    const snap = await ordersRef
-      .where("driverId", "==", driverId)
-      .get();
+    // Verify đơn thuộc về tài xế này
+    const orderDoc = await ordersRef.doc(orderId).get();
+    if (!orderDoc.exists) {
+      throw new Error("Đơn hàng không tồn tại");
+    }
 
-    const matchingDoc = snap.docs.find((d) => d.id === orderId);
-    if (!matchingDoc) {
-      throw new Error("Đơn hàng không tồn tại hoặc không thuộc về bạn");
+    const orderData = orderDoc.data();
+    if (orderData.driverId !== driverId) {
+      throw new Error("Đơn hàng không thuộc về bạn");
     }
 
     await ordersRef.doc(orderId).update({ status, updatedAt: new Date() });
@@ -162,7 +188,9 @@ export const shipperService = {
     }
 
     const updatedDoc = await ordersRef.doc(orderId).get();
-    return { id: updatedDoc.id, ...updatedDoc.data() };
+    const order = { id: updatedDoc.id, ...updatedDoc.data() };
+    await populateOrder(order);
+    return order;
   },
 
   updateLocation: async (driverId, latitude, longitude) => {

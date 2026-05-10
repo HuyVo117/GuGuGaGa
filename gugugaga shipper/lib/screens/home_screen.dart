@@ -29,9 +29,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _tabController = TabController(length: 2, vsync: this);
     _loadDriverInfo();
     _fetchAll();
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _fetchAll(silent: true);
-    });
   }
 
   @override
@@ -109,7 +106,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _logout() async {
-    _timer?.cancel();
     await _apiService.logout();
     if (mounted) {
       Navigator.pushReplacement(

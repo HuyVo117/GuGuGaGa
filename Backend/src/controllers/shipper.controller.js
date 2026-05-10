@@ -19,6 +19,7 @@ export const shipperController = {
       const orders = await shipperService.getAvailableOrders();
       return ApiResponse.success(res, orders, "Lấy danh sách đơn có thể nhận thành công");
     } catch (error) {
+      console.error("[getAvailableOrders] ERROR:", error.message, error.stack);
       return ApiResponse.error(res, error);
     }
   },
