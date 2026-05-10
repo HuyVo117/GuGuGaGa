@@ -1,5 +1,9 @@
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
 import { deleteImageService } from "./upload.service.js";
+
+const combosRef = db.collection("combos");
+const categoriesRef = db.collection("categories");
+const productsRef = db.collection("products");
 
 const getPublicIdFromUrl = (url) => {
   if (!url) return null;
@@ -12,81 +16,114 @@ const getPublicIdFromUrl = (url) => {
   }
 };
 
+// Helper: populate combo with category + comboItems (with products)
+async function populateCombo(comboDoc) {
+  const combo = { id: comboDoc.id, ...(comboDoc.data ? comboDoc.data() : comboDoc) };
+
+  // Populate category
+  if (combo.categoryId) {
+    const catDoc = await categoriesRef.doc(combo.categoryId).get();
+    combo.category = catDoc.exists ? { id: catDoc.id, ...catDoc.data() } : null;
+  } else {
+    combo.category = null;
+  }
+
+  // Populate comboItems sub-collection
+  const itemsSnap = await combosRef.doc(combo.id).collection("comboItems").get();
+  combo.comboItems = [];
+  for (const itemDoc of itemsSnap.docs) {
+    const item = { id: itemDoc.id, ...itemDoc.data() };
+    // Populate product in each comboItem
+    if (item.productId) {
+      const prodDoc = await productsRef.doc(item.productId).get();
+      if (prodDoc.exists) {
+        const product = { id: prodDoc.id, ...prodDoc.data() };
+        // Populate category inside product
+        if (product.categoryId) {
+          const catDoc = await categoriesRef.doc(product.categoryId).get();
+          product.category = catDoc.exists ? { id: catDoc.id, ...catDoc.data() } : null;
+        }
+        item.product = product;
+      } else {
+        item.product = null;
+      }
+    }
+    combo.comboItems.push(item);
+  }
+
+  return combo;
+}
+
 export const comboService = {
   async getAll(categoryId) {
-    const where = categoryId ? { categoryId: Number(categoryId) } : {};
-    return await prisma.combo.findMany({
-      where,
-      include: {
-        category: true,
-        comboItems: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    let query = combosRef;
+    if (categoryId) {
+      query = combosRef.where("categoryId", "==", categoryId);
+    }
+    const snap = await query.get();
+    const combos = [];
+    for (const doc of snap.docs) {
+      combos.push(await populateCombo(doc));
+    }
+    return combos;
   },
 
   async getById(id) {
-    return await prisma.combo.findUnique({
-      where: { id: Number(id) },
-      include: {
-        category: true,
-        comboItems: {
-          include: {
-            product: {
-              include: {
-                category: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const doc = await combosRef.doc(id).get();
+    if (!doc.exists) return null;
+    return await populateCombo(doc);
   },
 
   async create(data) {
     const { name, price, categoryId, desc, image, comboItems } = data;
 
     // Verify category
-    const category = await prisma.category.findUnique({
-      where: { id: Number(categoryId) },
-    });
-    if (!category) throw new Error("Category not found");
+    const catDoc = await categoriesRef.doc(categoryId).get();
+    if (!catDoc.exists) throw new Error("Category not found");
 
-    // Create combo with items
-    return await prisma.combo.create({
-      data: {
-        name,
-        price: Number(price),
-        categoryId: Number(categoryId),
-        desc,
-        image,
-        comboItems: {
-          create: comboItems.map((item) => ({
-            productId: Number(item.productId),
-            quantity: Number(item.quantity),
-          })),
-        },
-      },
-      include: {
-        comboItems: true,
-      },
+    const now = new Date();
+    const docRef = await combosRef.add({
+      name,
+      price: Number(price),
+      categoryId,
+      desc: desc || null,
+      image: image || null,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    // Create comboItems as sub-collection
+    const createdItems = [];
+    if (comboItems && comboItems.length > 0) {
+      for (const item of comboItems) {
+        const itemRef = await docRef.collection("comboItems").add({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+        });
+        createdItems.push({ id: itemRef.id, productId: item.productId, quantity: Number(item.quantity) });
+      }
+    }
+
+    return {
+      id: docRef.id,
+      name,
+      price: Number(price),
+      categoryId,
+      desc,
+      image,
+      createdAt: now,
+      updatedAt: now,
+      comboItems: createdItems,
+    };
   },
 
   async update(id, data) {
     const { name, price, categoryId, desc, image, comboItems } = data;
 
-    const combo = await prisma.combo.findUnique({
-      where: { id: Number(id) },
-    });
-    if (!combo) throw new Error("Combo not found");
+    const docRef = combosRef.doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) throw new Error("Combo not found");
+    const combo = doc.data();
 
     // Handle image deletion
     if (image && combo.image && image !== combo.image) {
@@ -96,48 +133,46 @@ export const comboService = {
       }
     }
 
-    // Update combo
-    // For comboItems, we delete existing and recreate (simplest approach for now)
-    // Or use transaction to update. Let's use deleteMany then create.
-    
-    return await prisma.$transaction(async (tx) => {
-      // Delete existing items
-      if (comboItems) {
-        await tx.comboItem.deleteMany({
-          where: { comboId: Number(id) },
+    // Update combo fields
+    const updateData = { updatedAt: new Date() };
+    if (name !== undefined) updateData.name = name;
+    if (price !== undefined) updateData.price = Number(price);
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (desc !== undefined) updateData.desc = desc;
+    if (image !== undefined) updateData.image = image;
+
+    await docRef.update(updateData);
+
+    // If comboItems provided, delete old and create new
+    if (comboItems) {
+      const oldItems = await docRef.collection("comboItems").get();
+      const batch = db.batch();
+      oldItems.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+
+      for (const item of comboItems) {
+        await docRef.collection("comboItems").add({
+          productId: item.productId,
+          quantity: Number(item.quantity),
         });
       }
+    }
 
-      const updatedCombo = await tx.combo.update({
-        where: { id: Number(id) },
-        data: {
-          name,
-          price: price !== undefined ? Number(price) : undefined,
-          categoryId: categoryId ? Number(categoryId) : undefined,
-          desc,
-          image,
-          comboItems: comboItems
-            ? {
-                create: comboItems.map((item) => ({
-                  productId: Number(item.productId),
-                  quantity: Number(item.quantity),
-                })),
-              }
-            : undefined,
-        },
-        include: {
-          comboItems: true,
-        },
-      });
-      return updatedCombo;
-    });
+    // Return updated combo
+    const updatedDoc = await docRef.get();
+    const itemsSnap = await docRef.collection("comboItems").get();
+    return {
+      id: updatedDoc.id,
+      ...updatedDoc.data(),
+      comboItems: itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    };
   },
 
   async delete(id) {
-    const combo = await prisma.combo.findUnique({
-      where: { id: Number(id) },
-    });
-    if (!combo) throw new Error("Combo not found");
+    const docRef = combosRef.doc(id);
+    const doc = await docRef.get();
+    if (!doc.exists) throw new Error("Combo not found");
+    const combo = doc.data();
 
     if (combo.image) {
       const publicId = getPublicIdFromUrl(combo.image);
@@ -146,13 +181,13 @@ export const comboService = {
       }
     }
 
-    // ComboItems are usually deleted via cascade if configured in schema, 
-    // but to be safe/explicit or if cascade isn't set:
-    // await prisma.comboItem.deleteMany({ where: { comboId: Number(id) } }); 
-    // Assuming schema handles cascade or we rely on prisma to handle it if defined.
-    // Let's assume cascade delete is configured in DB or Prisma schema.
-    
-    await prisma.combo.delete({ where: { id: Number(id) } });
+    // Delete comboItems sub-collection
+    const items = await docRef.collection("comboItems").get();
+    const batch = db.batch();
+    items.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+
+    await docRef.delete();
     return { message: "Combo deleted successfully" };
   },
 };

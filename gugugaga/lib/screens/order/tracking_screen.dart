@@ -12,7 +12,7 @@ import 'dart:math' as math;
 import '../../services/route_service.dart';
 
 class TrackingScreen extends StatefulWidget {
-  final int orderId;
+  final String orderId;
 
   const TrackingScreen({super.key, required this.orderId});
 

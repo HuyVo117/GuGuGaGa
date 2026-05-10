@@ -2,8 +2,8 @@ import 'category.dart';
 import 'product.dart';
 
 class Combo {
-  final int id;
-  final int categoryId;
+  final String id;
+  final String categoryId;
   final Category category;
   final String name;
   final int price;
@@ -48,9 +48,9 @@ class Combo {
 }
 
 class ComboItem {
-  final int id;
-  final int comboId;
-  final int productId;
+  final String id;
+  final String comboId;
+  final String productId;
   final int quantity;
   final Product? product;
 

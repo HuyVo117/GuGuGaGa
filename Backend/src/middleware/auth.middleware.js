@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
 import { config } from "../configs/env.js";
 
 /**
@@ -32,27 +32,27 @@ export const protectRoute = async (req, res, next) => {
     // 4. Verify token
     const decoded = jwt.verify(token, config.jwtSecret);
 
-    // 5. Tìm user trong DB
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        role: true,
-      },
-    });
+    // 5. Tìm user trong DB (Firestore)
+    const userId = String(decoded.userId);
+    const userDoc = await db.collection("users").doc(userId).get();
 
-    if (!user) {
+    if (!userDoc.exists) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized: User not found",
       });
     }
 
+    const userData = userDoc.data();
+
     // 6. Gán user vào req
-    req.user = user;
+    req.user = {
+      id: userDoc.id,
+      name: userData.name,
+      phone: userData.phone,
+      email: userData.email,
+      role: userData.role,
+    };
 
     next(); // Cho phép tiếp tục vào controller
   } catch (error) {

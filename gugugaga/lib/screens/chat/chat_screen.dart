@@ -174,12 +174,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // Find the actual item in the list
     dynamic actualItem;
     if (item.type == 'product') {
-      actualItem = _products.firstWhere((p) => p.id == item.id, orElse: () => Product(id: -1, categoryId: 0, category: Category(id: 0, name: ''), name: 'Unknown Product', price: 0, createdAt: DateTime.now(), updatedAt: DateTime.now()));
+      actualItem = _products.firstWhere((p) => p.id == item.id, orElse: () => Product(id: '-1', categoryId: '0', category: Category(id: '0', name: ''), name: 'Unknown Product', price: 0, createdAt: DateTime.now(), updatedAt: DateTime.now()));
     } else {
-      actualItem = _combos.firstWhere((c) => c.id == item.id, orElse: () => Combo(id: -1, categoryId: 0, category: Category(id: 0, name: ''), name: 'Unknown Combo', price: 0, createdAt: DateTime.now(), updatedAt: DateTime.now(), comboItems: []));
+      actualItem = _combos.firstWhere((c) => c.id == item.id, orElse: () => Combo(id: '-1', categoryId: '0', category: Category(id: '0', name: ''), name: 'Unknown Combo', price: 0, createdAt: DateTime.now(), updatedAt: DateTime.now(), comboItems: []));
     }
 
-    if (actualItem.id == -1) return const SizedBox.shrink();
+    if (actualItem.id == '-1') return const SizedBox.shrink();
 
     return Card(
       margin: const EdgeInsets.only(top: 8),

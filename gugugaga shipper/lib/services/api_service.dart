@@ -80,7 +80,7 @@ class ApiService {
     return [];
   }
 
-  Future<void> acceptOrder(int orderId) async {
+  Future<void> acceptOrder(String orderId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
@@ -99,7 +99,7 @@ class ApiService {
     }
   }
 
-  Future<void> updateOrderStatus(int orderId, String status) async {
+  Future<void> updateOrderStatus(String orderId, String status) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 

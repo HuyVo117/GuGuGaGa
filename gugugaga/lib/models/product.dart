@@ -1,8 +1,8 @@
 import 'category.dart';
 
 class Product {
-  final int id;
-  final int categoryId;
+  final String id;
+  final String categoryId;
   final Category category;
   final String name;
   final int price;
@@ -29,7 +29,7 @@ class Product {
       categoryId: json['categoryId'],
       category: json['category'] != null 
           ? Category.fromJson(json['category']) 
-          : Category(id: 0, name: 'Unknown'),
+          : Category(id: '0', name: 'Unknown'),
       name: json['name'],
       price: json['price'],
       desc: json['desc'],

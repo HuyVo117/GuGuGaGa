@@ -22,7 +22,7 @@ class MenuScreen extends StatefulWidget {
 
 class _MenuScreenState extends State<MenuScreen> {
   final ApiService _apiService = ApiService();
-  int? _selectedCategoryId;
+  String? _selectedCategoryId;
   List<Product> _products = [];
   List<Combo> _combos = [];
   List<Category> _categories = [];
@@ -61,7 +61,7 @@ class _MenuScreenState extends State<MenuScreen> {
     }
   }
 
-  Future<void> _filterByCategory(int? categoryId) async {
+  Future<void> _filterByCategory(String? categoryId) async {
     setState(() {
       _selectedCategoryId = categoryId;
       _isLoading = true;
@@ -152,7 +152,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     scrollDirection: Axis.horizontal,
                     children: [
                       _CategoryChip(
-                        category: Category(id: 0, name: 'Tất cả'),
+                        category: Category(id: '0', name: 'Tất cả'),
                         isSelected: _selectedCategoryId == null,
                         onTap: () => _filterByCategory(null),
                       ),

@@ -1,37 +1,46 @@
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
+import bcrypt from "bcrypt";
+
+const usersRef = db.collection("users");
 
 export const userService = {
   async getAllUsers(currentUserId) {
-    return await prisma.user.findMany({
-      where: {
-        id: { not: currentUserId },
-      },
-    });
+    const snap = await usersRef.get();
+    return snap.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .filter((user) => user.id !== currentUserId);
   },
 
   async getUserById(id) {
-    return await prisma.user.findUnique({
-      where: { id: Number(id) },
-    });
+    const doc = await usersRef.doc(id).get();
+    if (!doc.exists) return null;
+    return { id: doc.id, ...doc.data() };
   },
 
   async createUser(data) {
-    return await prisma.user.create({ data });
+    const now = new Date();
+    const docRef = await usersRef.add({
+      ...data,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { id: docRef.id, ...data, createdAt: now, updatedAt: now };
   },
 
   async deleteUser(id) {
-    return await prisma.user.delete({
-      where: { id: Number(id) },
-    });
+    await usersRef.doc(id).delete();
+    return { id };
   },
+
   updateUser: async (id, data) => {
     const updateData = {
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      address: data.address,
-      role: data.role,
+      updatedAt: new Date(),
     };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.email !== undefined) updateData.email = data.email;
+    if (data.phone !== undefined) updateData.phone = data.phone;
+    if (data.address !== undefined) updateData.address = data.address;
+    if (data.role !== undefined) updateData.role = data.role;
 
     // Nếu frontend gửi password mới, hash nó
     if (data.password && data.password.trim() !== "") {
@@ -39,11 +48,9 @@ export const userService = {
       updateData.passwordHash = hashed;
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: Number(id) },
-      data: updateData,
-    });
-
-    return updatedUser;
+    const docRef = usersRef.doc(id);
+    await docRef.update(updateData);
+    const updated = await docRef.get();
+    return { id: updated.id, ...updated.data() };
   },
 };

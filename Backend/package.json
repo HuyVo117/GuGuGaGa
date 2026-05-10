@@ -11,13 +11,9 @@
     "start:src": "node src/server.js",
     "dev:legacy": "nodemon server.js",
     "start:legacy": "node server.js",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "seed": "node prisma/seed.js",
-    "prisma:studio": "prisma studio"
+    "seed": "node seed-firestore.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.17.0",
     "axios": "^1.14.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^2.4.3",
@@ -26,16 +22,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "firebase-admin": "^13.9.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "pg-promise": "^12.6.2"
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4",
-    "prisma": "^5.17.0",
-    "prisma-erd-generator": "^2.4.2"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+    "nodemon": "^3.1.4"
   }
 }

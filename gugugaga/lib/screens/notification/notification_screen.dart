@@ -9,14 +9,14 @@ class NotificationScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final notifications = [
       model.Notification(
-        id: 1,
+        id: '1',
         title: 'Khuyến mãi 50%',
         message: 'Giảm giá 50% cho tất cả các đơn hàng trong ngày hôm nay',
         createdAt: DateTime.now().subtract(const Duration(hours: 2)),
         isRead: false,
       ),
       model.Notification(
-        id: 2,
+        id: '2',
         title: 'Đơn hàng đã giao',
         message: 'Đơn hàng #100001 của bạn đã được giao thành công',
         createdAt: DateTime.now().subtract(const Duration(days: 1)),

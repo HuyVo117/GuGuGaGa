@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
 import { config } from "../configs/env.js";
 
 /**
@@ -32,13 +32,12 @@ export const protectDriverRoute = async (req, res, next) => {
     // 4. Verify token
     const decoded = jwt.verify(token, config.jwtSecret);
 
-    // 5. Tìm driver trong DB
+    // 5. Tìm driver trong DB (Firestore)
     // Token shipper có payload { id: driver.id, role: "DRIVER" }
-    const driver = await prisma.driver.findUnique({
-      where: { id: decoded.id },
-    });
+    const driverId = String(decoded.id);
+    const driverDoc = await db.collection("drivers").doc(driverId).get();
 
-    if (!driver) {
+    if (!driverDoc.exists) {
       return res.status(401).json({
         success: false,
         message: "Unauthorized: Driver not found",
@@ -46,7 +45,7 @@ export const protectDriverRoute = async (req, res, next) => {
     }
 
     // 6. Gán user vào req (để thống nhất với controller dùng req.user)
-    req.user = driver;
+    req.user = { id: driverDoc.id, ...driverDoc.data() };
 
     next(); // Cho phép tiếp tục vào controller
   } catch (error) {

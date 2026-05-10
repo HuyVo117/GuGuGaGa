@@ -98,7 +98,7 @@ class AIResponse {
 
 class SuggestedItem {
   final String type;
-  final int id;
+  final String id;
 
   SuggestedItem({required this.type, required this.id});
 

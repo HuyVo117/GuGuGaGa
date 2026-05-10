@@ -80,7 +80,7 @@ class ApiService {
     throw Exception('Đặt lại mật khẩu thất bại: ${response.body}');
   }
 
-  Future<List<Product>> getProducts({int? categoryId}) async {
+  Future<List<Product>> getProducts({String? categoryId}) async {
     String url = '${AppConstants.baseUrl}/products';
     if (categoryId != null) {
       url += '?categoryId=$categoryId';
@@ -110,7 +110,7 @@ class ApiService {
     throw Exception('Failed to load categories');
   }
 
-  Future<List<Combo>> getCombos({int? categoryId}) async {
+  Future<List<Combo>> getCombos({String? categoryId}) async {
     String url = '${AppConstants.baseUrl}/combos';
     if (categoryId != null) {
       url += '?categoryId=$categoryId';
@@ -134,7 +134,7 @@ class ApiService {
   }
 
   // Cart APIs
-  Future<Map<String, dynamic>> getCart(int branchId, String token) async {
+  Future<Map<String, dynamic>> getCart(String branchId, String token) async {
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/user/carts?branchId=$branchId'),
       headers: {
@@ -152,7 +152,7 @@ class ApiService {
     throw Exception('Failed to load cart: ${response.body}');
   }
 
-  Future<Map<String, dynamic>> createCart(int branchId, String token) async {
+  Future<Map<String, dynamic>> createCart(String branchId, String token) async {
     final response = await http
         .post(
           Uri.parse('${AppConstants.baseUrl}/user/carts/create'),
@@ -174,9 +174,9 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> addToCart(
-    int branchId,
-    int? productId,
-    int? comboId,
+    String branchId,
+    String? productId,
+    String? comboId,
     int quantity,
     String token,
   ) async {
@@ -204,7 +204,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> updateCartItem(
-    int cartItemId,
+    String cartItemId,
     int quantity,
     String token,
   ) async {
@@ -227,7 +227,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> removeCartItem(
-    int cartItemId,
+    String cartItemId,
     String token,
   ) async {
     final response = await http.delete(
@@ -249,7 +249,7 @@ class ApiService {
 
   // Order APIs
   Future<Map<String, dynamic>> createOrder({
-    required int branchId,
+    required String branchId,
     required String paymentMethod,
     required String deliveryAddress,
     required String deliveryPhone,
@@ -300,7 +300,7 @@ class ApiService {
     throw Exception('Failed to load orders: ${response.body}');
   }
 
-  Future<Map<String, dynamic>> getOrderDetail(int orderId, String token) async {
+  Future<Map<String, dynamic>> getOrderDetail(String orderId, String token) async {
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/user/orders/$orderId'),
       headers: {

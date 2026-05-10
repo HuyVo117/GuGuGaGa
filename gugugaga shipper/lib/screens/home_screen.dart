@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
-  Future<void> _acceptOrder(int orderId) async {
+  Future<void> _acceptOrder(String orderId) async {
     try {
       await _apiService.acceptOrder(orderId);
       if (mounted) {

@@ -1,122 +1,165 @@
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
 
+const ordersRef = db.collection("orders");
+const driversRef = db.collection("drivers");
+const usersRef = db.collection("users");
+const branchesRef = db.collection("branches");
+const productsRef = db.collection("products");
+const combosRef = db.collection("combos");
+const categoriesRef = db.collection("categories");
+const cartsRef = db.collection("carts");
+
+// Helper: populate full order with relations
+async function populateOrder(order) {
+  // Populate user
+  if (order.userId) {
+    const userDoc = await usersRef.doc(order.userId).get();
+    order.user = userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
+  }
+  // Populate branch
+  if (order.branchId) {
+    const branchDoc = await branchesRef.doc(order.branchId).get();
+    order.branch = branchDoc.exists ? { id: branchDoc.id, ...branchDoc.data() } : null;
+  }
+  // Populate driver
+  if (order.driverId) {
+    const driverDoc = await driversRef.doc(order.driverId).get();
+    order.driver = driverDoc.exists ? { id: driverDoc.id, ...driverDoc.data() } : null;
+  } else {
+    order.driver = null;
+  }
+  // Populate orderItems sub-collection
+  const itemsSnap = await ordersRef.doc(order.id).collection("orderItems").get();
+  order.orderItem = [];
+  for (const itemDoc of itemsSnap.docs) {
+    const item = { id: itemDoc.id, ...itemDoc.data() };
+    // Populate product
+    if (item.productId) {
+      const prodDoc = await productsRef.doc(item.productId).get();
+      if (prodDoc.exists) {
+        item.product = { id: prodDoc.id, ...prodDoc.data() };
+        if (item.product.categoryId) {
+          const catDoc = await categoriesRef.doc(item.product.categoryId).get();
+          item.product.category = catDoc.exists ? { id: catDoc.id, ...catDoc.data() } : null;
+        }
+      } else {
+        item.product = null;
+      }
+    } else {
+      item.product = null;
+    }
+    // Populate combo
+    if (item.comboId) {
+      const comboDoc = await combosRef.doc(item.comboId).get();
+      item.combo = comboDoc.exists ? { id: comboDoc.id, ...comboDoc.data() } : null;
+    } else {
+      item.combo = null;
+    }
+    order.orderItem.push(item);
+  }
+  return order;
+}
 
 export const orderService = {
   // Lấy tất cả đơn hàng (ADMIN)
   async getAll() {
-    return await prisma.order.findMany({
-      include: {
-        orderItem: {
-          include: {
-            product: { include: { category: true } },
-            combo: true,
-          },
-        },
-        user: true,
-        branch: true,
-        driver: true, // nếu muốn show luôn tài xế
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const snap = await ordersRef.orderBy("createdAt", "desc").get();
+    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    await Promise.all(orders.map(populateOrder));
+    return orders;
   },
+
   createOrder: async (userId, cart, body) => {
     const { paymentMethod, deliveryAddress, deliveryPhone, latitude, longitude } = body;
 
     // Convert cart items -> order items
     const items = cart.cartItem.map((item) => ({
-      productId: item.productId,
-      comboId: item.comboId,
+      productId: item.productId || null,
+      comboId: item.comboId || null,
       quantity: item.quantity,
-      price: item.price, // lấy giá từ CartItem
+      price: item.price,
     }));
 
-    // Tính tổng tiền từ cart luôn, không cần map lại
     const totalAmount = cart.totalAmount;
+    const now = new Date();
 
-    // Tạo order (tự động ACCEPTED để tài xế có thể nhận)
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        branchId: cart.branchId,
-        totalAmount,
-        status: "ACCEPTED",
-        paymentMethod,
-        deliveryAddress,
-        deliveryPhone,
-        latitude,
-        longitude,
-        orderItem: {
-          create: items,
-        },
-      },
-      include: {
-        orderItem: true,
-      },
+    // Tạo order
+    const orderRef = await ordersRef.add({
+      userId,
+      branchId: cart.branchId,
+      totalAmount,
+      status: "ACCEPTED",
+      paymentMethod,
+      deliveryAddress,
+      deliveryPhone,
+      latitude: latitude || null,
+      longitude: longitude || null,
+      driverId: null,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    // Xóa cart sau khi tạo order
-    await prisma.cartItem.deleteMany({
-      where: { cartId: cart.id },
-    });
+    // Create orderItems sub-collection
+    const createdItems = [];
+    for (const item of items) {
+      const itemRef = await orderRef.collection("orderItems").add(item);
+      createdItems.push({ id: itemRef.id, ...item });
+    }
 
-    await prisma.cart.delete({
-      where: { id: cart.id },
-    });
+    // Xóa cart items sub-collection + cart doc
+    const cartDocRef = cartsRef.doc(cart.id);
+    const cartItemsSnap = await cartDocRef.collection("cartItems").get();
+    const batch = db.batch();
+    cartItemsSnap.docs.forEach((d) => batch.delete(d.ref));
+    batch.delete(cartDocRef);
+    await batch.commit();
 
-    return order;
+    return {
+      id: orderRef.id,
+      userId,
+      branchId: cart.branchId,
+      totalAmount,
+      status: "ACCEPTED",
+      paymentMethod,
+      deliveryAddress,
+      deliveryPhone,
+      latitude,
+      longitude,
+      createdAt: now,
+      updatedAt: now,
+      orderItem: createdItems,
+    };
   },
 
   getOrdersByUser: async (userId) => {
-    return await prisma.order.findMany({
-      where: { userId },
-      include: {
-        orderItem: {
-          include: {
-            product: { include: { category: true } },
-            combo: true,
-          },
-        },
-        branch: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const snap = await ordersRef
+      .where("userId", "==", userId)
+      .orderBy("createdAt", "desc")
+      .get();
+    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    await Promise.all(orders.map(populateOrder));
+    return orders;
   },
 
   getOrderDetail: async (orderId, userId) => {
-    return await prisma.order.findFirst({
-      where: { id: orderId, userId },
-      include: {
-        orderItem: {
-          include: {
-            product: { include: { category: true } },
-            combo: true,
-          },
-        },
-        branch: true,
-      },
-    });
+    const doc = await ordersRef.doc(orderId).get();
+    if (!doc.exists) return null;
+    const order = { id: doc.id, ...doc.data() };
+    if (order.userId !== userId) return null;
+    await populateOrder(order);
+    return order;
   },
 
   getAdminOrderDetail: async (orderId) => {
-    return await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        orderItem: {
-          include: {
-            product: { include: { category: true } },
-            combo: true,
-          },
-        },
-        branch: true,
-        user: true,
-        driver: true,
-      },
-    });
+    const doc = await ordersRef.doc(orderId).get();
+    if (!doc.exists) return null;
+    const order = { id: doc.id, ...doc.data() };
+    await populateOrder(order);
+    return order;
   },
 
   // Cập nhật trạng thái đơn hàng
   async updateStatus(orderId, status) {
-    // Kiểm tra status hợp lệ
     const validStatuses = [
       "PENDING",
       "ACCEPTED",
@@ -130,64 +173,45 @@ export const orderService = {
       );
     }
 
+    const orderRef = ordersRef.doc(orderId);
+    const orderDoc = await orderRef.get();
+    if (!orderDoc.exists) throw new Error("Order not found");
+    const currentOrder = orderDoc.data();
+
     // Nếu đơn hàng hoàn thành -> set driver về AVAILABLE
-    if (status === "DELIVERED") {
-      const currentOrder = await prisma.order.findUnique({
-        where: { id: Number(orderId) },
-      });
-      if (currentOrder && currentOrder.driverId) {
-        await prisma.driver.update({
-          where: { id: currentOrder.driverId },
-          data: { status: "AVAILABLE" },
-        });
-      }
+    if (status === "DELIVERED" && currentOrder.driverId) {
+      await driversRef.doc(currentOrder.driverId).update({ status: "AVAILABLE" });
     }
 
-    // Cập nhật
-    const order = await prisma.order.update({
-      where: { id: Number(orderId) },
-      data: { status },
-      include: {
-        orderItem: true,
-        user: true,
-        branch: true,
-        driver: true,
-      },
-    });
+    await orderRef.update({ status, updatedAt: new Date() });
 
+    const updatedDoc = await orderRef.get();
+    const order = { id: updatedDoc.id, ...updatedDoc.data() };
+    await populateOrder(order);
     return order;
   },
+
   // ADMIN gán tài xế
   async assignDriver(orderId, driverId) {
-    // Kiểm tra driver tồn tại
-    const driver = await prisma.driver.findUnique({
-      where: { id: Number(driverId) },
-    });
-    if (!driver) {
+    const driverDoc = await driversRef.doc(driverId).get();
+    if (!driverDoc.exists) {
       throw new Error("Driver không tồn tại");
     }
 
     // Cập nhật trạng thái driver -> ON_DELIVERY
-    await prisma.driver.update({
-      where: { id: Number(driverId) },
-      data: { status: "ON_DELIVERY" },
-    });
+    await driversRef.doc(driverId).update({ status: "ON_DELIVERY" });
 
     // Cập nhật order -> gán driver + status DRIVER_ASSIGNED
-    const order = await prisma.order.update({
-      where: { id: Number(orderId) },
-      data: {
-        driverId: Number(driverId),
-        status: "DRIVER_ASSIGNED",
-      },
-      include: {
-        orderItem: true,
-        user: true,
-        branch: true,
-        driver: true,
-      },
+    const orderRef = ordersRef.doc(orderId);
+    await orderRef.update({
+      driverId,
+      status: "DRIVER_ASSIGNED",
+      updatedAt: new Date(),
     });
 
+    const updatedDoc = await orderRef.get();
+    const order = { id: updatedDoc.id, ...updatedDoc.data() };
+    await populateOrder(order);
     return order;
   },
 };

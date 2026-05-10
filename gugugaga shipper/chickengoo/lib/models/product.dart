@@ -1,8 +1,8 @@
 import 'category.dart';
 
 class Product {
-  final int id;
-  final int categoryId;
+  final String id;
+  final String categoryId;
   final Category category;
   final String name;
   final int price;

@@ -5,9 +5,11 @@ import '../models/order.dart';
 import '../services/api_service.dart';
 
 class CartItem {
-  final int? id; // CartItem ID from backend
   final Product? product;
   final Combo? combo;
+  final String? id; // CartItem ID from backend
+  String? productId;
+  String? comboId;
   int quantity;
   bool isSyncing; // Flag to indicate if this item is currently being synced with backend
 
@@ -44,7 +46,7 @@ class CartProvider with ChangeNotifier {
 
   bool get isEmpty => _items.isEmpty;
 
-  Future<void> loadCart(int branchId, String token) async {
+  Future<void> loadCart(String branchId, String token) async {
     try {
       final apiService = ApiService();
       final cartData = await apiService.getCart(branchId, token);
@@ -100,7 +102,7 @@ class CartProvider with ChangeNotifier {
         // If it doesn't, it might be a newly added item that just got confirmed.
         
         // We trust backend for ID
-        final int backendId = backendItem['id'];
+        final String backendId = backendItem['id'];
         final int backendQty = backendItem['quantity'];
         
         // Update local item
@@ -149,7 +151,7 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addProduct(Product product, {int quantity = 1, int? branchId, String? token}) async {
+  Future<void> addProduct(Product product, {int quantity = 1, String? branchId, String? token}) async {
     final key = 'p_${product.id}';
     _pendingAdds[key] = DateTime.now().millisecondsSinceEpoch;
 
@@ -199,7 +201,7 @@ class CartProvider with ChangeNotifier {
     }
   }
 
-  Future<void> addCombo(Combo combo, {int quantity = 1, int? branchId, String? token}) async {
+  Future<void> addCombo(Combo combo, {int quantity = 1, String? branchId, String? token}) async {
     final key = 'c_${combo.id}';
     _pendingAdds[key] = DateTime.now().millisecondsSinceEpoch;
 
@@ -240,21 +242,24 @@ class CartProvider with ChangeNotifier {
     }
   }
   
-  dynamic _findItemInCartData(Map<String, dynamic> cartData, {int? productId, int? comboId}) {
-    if (cartData['cartItem'] == null) return null;
-    for (var item in cartData['cartItem']) {
-      if (productId != null && item['product'] != null && item['product']['id'] == productId) {
-        return item;
-      }
-      if (comboId != null && item['combo'] != null && item['combo']['id'] == comboId) {
-        return item;
+  dynamic _findItemInCartData(Map<String, dynamic> cartData, {String? productId, String? comboId}) {
+    if (cartData['cartItem'] != null) {
+      final items = cartData['cartItem'] as List;
+      try {
+        if (productId != null) {
+          return items.firstWhere((item) => item['productId'] == productId);
+        } else if (comboId != null) {
+          return items.firstWhere((item) => item['comboId'] == comboId);
+        }
+      } catch (e) {
+        return null;
       }
     }
     return null;
   }
 
-  Future<void> removeItem(int index, {String? token, int? forceId}) async {
-    int? itemIdToRemove;
+  Future<void> removeItem(int index, {String? token, String? forceId}) async {
+    String? itemIdToRemove;
     
     if (forceId != null) {
       itemIdToRemove = forceId;

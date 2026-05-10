@@ -1,22 +1,67 @@
-import prisma from "../configs/prisma.js";
+import db from "../configs/firestore.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../configs/env.js";
 
+const driversRef = db.collection("drivers");
+const ordersRef = db.collection("orders");
+const branchesRef = db.collection("branches");
+const usersRef = db.collection("users");
+const productsRef = db.collection("products");
+const combosRef = db.collection("combos");
+
+// Helper: populate order with branch, user, orderItems (product + combo)
+async function populateOrder(order) {
+  if (order.branchId) {
+    const branchDoc = await branchesRef.doc(order.branchId).get();
+    order.branch = branchDoc.exists ? { id: branchDoc.id, ...branchDoc.data() } : null;
+  }
+  if (order.userId) {
+    const userDoc = await usersRef.doc(order.userId).get();
+    order.user = userDoc.exists ? { id: userDoc.id, ...userDoc.data() } : null;
+  }
+  // orderItems sub-collection
+  const itemsSnap = await ordersRef.doc(order.id).collection("orderItems").get();
+  order.orderItem = [];
+  for (const itemDoc of itemsSnap.docs) {
+    const item = { id: itemDoc.id, ...itemDoc.data() };
+    if (item.productId) {
+      const prodDoc = await productsRef.doc(item.productId).get();
+      item.product = prodDoc.exists ? { id: prodDoc.id, ...prodDoc.data() } : null;
+    } else {
+      item.product = null;
+    }
+    if (item.comboId) {
+      const comboDoc = await combosRef.doc(item.comboId).get();
+      item.combo = comboDoc.exists ? { id: comboDoc.id, ...comboDoc.data() } : null;
+    } else {
+      item.combo = null;
+    }
+    order.orderItem.push(item);
+  }
+  return order;
+}
+
 export const shipperService = {
   login: async (phone, password) => {
-    const driver = await prisma.driver.findUnique({
-      where: { phone },
-      include: { branch: true },
-    });
+    const snap = await driversRef.where("phone", "==", phone).limit(1).get();
 
-    if (!driver) {
+    if (snap.empty) {
       throw new Error("Tài xế không tồn tại");
     }
+
+    const doc = snap.docs[0];
+    const driver = { id: doc.id, ...doc.data() };
 
     const isMatch = await bcrypt.compare(password, driver.passwordHash);
     if (!isMatch) {
       throw new Error("Mật khẩu không đúng");
+    }
+
+    // Populate branch
+    if (driver.branchId) {
+      const branchDoc = await branchesRef.doc(driver.branchId).get();
+      driver.branch = branchDoc.exists ? { id: branchDoc.id, ...branchDoc.data() } : null;
     }
 
     const token = jwt.sign(
@@ -29,134 +74,104 @@ export const shipperService = {
   },
 
   getAvailableOrders: async () => {
-    return await prisma.order.findMany({
-      where: {
-        driverId: null,
-        status: "ACCEPTED",
-      },
-      include: {
-        branch: true,
-        user: true,
-        orderItem: {
-          include: {
-            product: true,
-            combo: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const snap = await ordersRef
+      .where("status", "==", "ACCEPTED")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    // Filter orders where driverId is null (Firestore doesn't support == null in compound queries well)
+    const orders = [];
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (!data.driverId) {
+        const order = { id: doc.id, ...data };
+        await populateOrder(order);
+        orders.push(order);
+      }
+    }
+    return orders;
   },
 
   acceptOrder: async (orderId, driverId) => {
-    const order = await prisma.order.findUnique({
-      where: { id: Number(orderId) },
-    });
+    const orderRef = ordersRef.doc(orderId);
+    const orderDoc = await orderRef.get();
 
-    if (!order) {
+    if (!orderDoc.exists) {
       throw new Error("Đơn hàng không tồn tại");
     }
 
-    if (order.driverId) {
+    const orderData = orderDoc.data();
+
+    if (orderData.driverId) {
       throw new Error("Đơn hàng đã có tài xế nhận");
     }
 
-    if (order.status !== "ACCEPTED") {
+    if (orderData.status !== "ACCEPTED") {
       throw new Error("Đơn hàng chưa sẵn sàng để nhận");
     }
 
-    await prisma.driver.update({
-      where: { id: driverId },
-      data: { status: "ON_DELIVERY" },
+    await driversRef.doc(driverId).update({ status: "ON_DELIVERY" });
+
+    await orderRef.update({
+      driverId,
+      status: "DRIVER_ASSIGNED",
+      updatedAt: new Date(),
     });
 
-    return await prisma.order.update({
-      where: { id: Number(orderId) },
-      data: {
-        driverId,
-        status: "DRIVER_ASSIGNED",
-      },
-      include: {
-        branch: true,
-        user: true,
-        orderItem: {
-          include: {
-            product: true,
-            combo: true,
-          },
-        },
-      },
-    });
+    const updatedDoc = await orderRef.get();
+    const order = { id: updatedDoc.id, ...updatedDoc.data() };
+    await populateOrder(order);
+    return order;
   },
 
   getMyOrders: async (driverId) => {
-    return await prisma.order.findMany({
-      where: { driverId },
-      include: {
-        branch: true,
-        user: true,
-        orderItem: {
-          include: {
-            product: true,
-            combo: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const snap = await ordersRef
+      .where("driverId", "==", driverId)
+      .orderBy("createdAt", "desc")
+      .get();
+    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    await Promise.all(orders.map(populateOrder));
+    return orders;
   },
 
   getAssignedOrders: async (driverId) => {
-    return await prisma.order.findMany({
-      where: {
-        driverId: driverId,
-        status: "DRIVER_ASSIGNED",
-      },
-      include: {
-        branch: true,
-        user: true,
-        orderItem: {
-          include: {
-            product: true,
-            combo: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const snap = await ordersRef
+      .where("driverId", "==", driverId)
+      .where("status", "==", "DRIVER_ASSIGNED")
+      .orderBy("createdAt", "desc")
+      .get();
+    const orders = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    await Promise.all(orders.map(populateOrder));
+    return orders;
   },
 
   updateOrderStatus: async (orderId, driverId, status) => {
-    const order = await prisma.order.findFirst({
-      where: { id: Number(orderId), driverId: driverId },
-    });
+    const snap = await ordersRef
+      .where("driverId", "==", driverId)
+      .get();
 
-    if (!order) {
+    const matchingDoc = snap.docs.find((d) => d.id === orderId);
+    if (!matchingDoc) {
       throw new Error("Đơn hàng không tồn tại hoặc không thuộc về bạn");
     }
 
-    const updatedOrder = await prisma.order.update({
-      where: { id: Number(orderId) },
-      data: { status },
-    });
+    await ordersRef.doc(orderId).update({ status, updatedAt: new Date() });
 
     if (status === "DELIVERED") {
-      await prisma.driver.update({
-        where: { id: driverId },
-        data: { status: "AVAILABLE" },
-      });
+      await driversRef.doc(driverId).update({ status: "AVAILABLE" });
     }
 
-    return updatedOrder;
+    const updatedDoc = await ordersRef.doc(orderId).get();
+    return { id: updatedDoc.id, ...updatedDoc.data() };
   },
 
   updateLocation: async (driverId, latitude, longitude) => {
-    return await prisma.driver.update({
-      where: { id: driverId },
-      data: {
-        latitude,
-        longitude,
-      },
+    await driversRef.doc(driverId).update({
+      latitude,
+      longitude,
+      updatedAt: new Date(),
     });
+    const updated = await driversRef.doc(driverId).get();
+    return { id: updated.id, ...updated.data() };
   },
 };

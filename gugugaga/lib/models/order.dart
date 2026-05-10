@@ -20,9 +20,9 @@ enum PaymentMethod {
 }
 
 class Order {
-  final int id;
-  final int userId;
-  final int branchId;
+  final String id;
+  final String userId;
+  final String branchId;
   final int totalAmount;
   final OrderStatus status;
   final String deliveryAddress;
@@ -147,10 +147,10 @@ class Order {
 }
 
 class OrderItem {
-  final int id;
-  final int orderId;
-  final int? productId;
-  final int? comboId;
+  final String id;
+  final String orderId;
+  final String? productId;
+  final String? comboId;
   final int quantity;
   final int price;
   final Product? product;
