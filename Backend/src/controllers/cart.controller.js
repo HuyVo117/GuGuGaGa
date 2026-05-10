@@ -16,7 +16,7 @@ export const cartController = {
         );
       }
 
-      const cart = await cartService.createCart(req.user.id, Number(branchId));
+      const cart = await cartService.createCart(req.user.id, branchId);
 
       return ApiResponse.success(res, cart, "Cart rỗng đã được tạo.");
     } catch (error) {
@@ -36,7 +36,7 @@ export const cartController = {
         );
       }
 
-      const cart = await cartService.getCart(req.user.id, Number(branchId));
+      const cart = await cartService.getCart(req.user.id, branchId);
 
       return ApiResponse.success(res, cart, "Lấy giỏ hàng thành công.");
     } catch (error) {
@@ -47,7 +47,7 @@ export const cartController = {
 
   addToCart: async (req, res) => {
     try {
-      const { productId, comboId, quantity } = req.body;
+      const { productId, comboId, quantity, branchId } = req.body;
 
       if ((!productId && !comboId) || !quantity || quantity < 1) {
         return ApiResponse.error(
@@ -56,8 +56,6 @@ export const cartController = {
           400
         );
       }
-
-      const branchId = Number(req.body.branchId);
 
       // Lấy cart hiện tại hoặc tạo mới nếu chưa có
       let cart = await cartService.getCart(req.user.id, branchId);
@@ -70,8 +68,8 @@ export const cartController = {
       const updatedCart = await cartService.addToCart(
         req.user.id,
         cart.branchId,
-        productId ? Number(productId) : null,
-        comboId ? Number(comboId) : null,
+        productId || null,
+        comboId || null,
         Number(quantity)
       );
 
@@ -87,8 +85,8 @@ export const cartController = {
   },
   updateQuantity: async (req, res) => {
     try {
-      const cartItemId = Number(req.params.id);
-      const { quantity } = req.body;
+      const cartItemId = req.params.id;
+      const { quantity, cartId } = req.body;
 
       if (!quantity || quantity < 1) {
         return ApiResponse.error(
@@ -100,7 +98,8 @@ export const cartController = {
 
       const cart = await cartService.updateQuantity(
         cartItemId,
-        Number(quantity)
+        Number(quantity),
+        cartId
       );
 
       return ApiResponse.success(res, cart, "Cập nhật số lượng thành công.");
@@ -112,9 +111,10 @@ export const cartController = {
 
   removeItem: async (req, res) => {
     try {
-      const cartItemId = Number(req.params.id);
+      const cartItemId = req.params.id;
+      const { cartId } = req.body;
 
-      const cart = await cartService.removeItem(cartItemId);
+      const cart = await cartService.removeItem(cartItemId, cartId);
 
       return ApiResponse.success(
         res,

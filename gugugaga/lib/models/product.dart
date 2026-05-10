@@ -34,8 +34,22 @@ class Product {
       price: json['price'],
       desc: json['desc'],
       image: json['image'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
     );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    if (value is Map) {
+      final seconds = value['_seconds'] ?? value['seconds'];
+      if (seconds != null) {
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+      }
+    }
+    return DateTime.now();
   }
 }

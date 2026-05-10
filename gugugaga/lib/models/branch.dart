@@ -21,14 +21,18 @@ class Branch {
   });
 
   factory Branch.fromJson(Map<String, dynamic> json) {
-    DateTime parseDate(String? dateStr) {
-      if (dateStr == null) return DateTime.now();
-      try {
-        return DateTime.parse(dateStr);
-      } catch (e) {
-        print('Error parsing date: $dateStr');
-        return DateTime.now();
+    DateTime parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is String) {
+        return DateTime.tryParse(value) ?? DateTime.now();
       }
+      if (value is Map) {
+        final seconds = value['_seconds'] ?? value['seconds'];
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        }
+      }
+      return DateTime.now();
     }
 
     return Branch(

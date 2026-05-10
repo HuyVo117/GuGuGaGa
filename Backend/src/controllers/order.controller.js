@@ -1,9 +1,6 @@
-import * as orderServiceModule from "../services/order.service.js";
-import * as cartServiceModule from "../services/cart.service.js";
+import { orderService } from "../services/order.service.js";
+import { cartService } from "../services/cart.service.js";
 import { ApiResponse } from "../configs/apiResponse.js";
-
-const orderService = orderServiceModule.orderService;
-const cartService = cartServiceModule.cartService;
 
 export const orderController = {
   // Lấy tất cả đơn hàng (ADMIN)
@@ -22,7 +19,7 @@ export const orderController = {
   },
   getAdminOrderDetail: async (req, res) => {
     try {
-      const orderId = Number(req.params.id);
+      const orderId = req.params.id;
       const order = await orderService.getAdminOrderDetail(orderId);
       if (!order) {
         return ApiResponse.error(res, { message: "Đơn hàng không tồn tại." }, 404);
@@ -39,6 +36,8 @@ export const orderController = {
       const { branchId, paymentMethod, deliveryAddress, deliveryPhone } =
         req.body;
 
+      console.log(`[createOrder] userId=${userId}, branchId=${branchId}`);
+
       if (!branchId || !paymentMethod || !deliveryAddress || !deliveryPhone) {
         return ApiResponse.error(
           res,
@@ -47,9 +46,10 @@ export const orderController = {
         );
       }
 
-      const cart = await cartService.getCart(userId, Number(branchId));
+      const cart = await cartService.getCart(userId, branchId);
+      console.log(`[createOrder] cart.id=${cart?.id}, items=${cart?.cartItem?.length}`);
 
-      if (!cart || cart.cartItem.length === 0) {
+      if (!cart || !cart.cartItem || cart.cartItem.length === 0) {
         return ApiResponse.error(
           res,
           { message: "Giỏ hàng trống, không thể tạo đơn hàng." },
@@ -69,10 +69,7 @@ export const orderController = {
   getOrders: async (req, res) => {
     try {
       const userId = req.user.id;
-      console.log(`[getOrders] Fetching orders for userId: ${userId}`);
-
       const orders = await orderService.getOrdersByUser(userId);
-      console.log(`[getOrders] Found ${orders.length} orders`);
 
       return ApiResponse.success(
         res,
@@ -87,7 +84,7 @@ export const orderController = {
 
   getOrderDetail: async (req, res) => {
     try {
-      const orderId = Number(req.params.id);
+      const orderId = req.params.id;
       const userId = req.user.id;
 
       const order = await orderService.getOrderDetail(orderId, userId);

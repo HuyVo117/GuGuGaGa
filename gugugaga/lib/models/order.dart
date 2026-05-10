@@ -124,16 +124,16 @@ class Order {
     }
 
     return Order(
-      id: json['id'],
-      userId: json['userId'],
-      branchId: json['branchId'],
-      totalAmount: json['totalAmount'],
+      id: json['id']?.toString() ?? '',
+      userId: json['userId']?.toString() ?? '',
+      branchId: json['branchId']?.toString() ?? '',
+      totalAmount: json['totalAmount'] ?? 0,
       status: mapStatus(json['status'] ?? 'PENDING'),
       deliveryAddress: json['deliveryAddress'] ?? '',
       deliveryPhone: json['deliveryPhone'] ?? '',
       paymentMethod: mapPaymentMethod(json['paymentMethod'] ?? 'COD'),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
       items: (json['orderItem'] as List?)
@@ -143,6 +143,21 @@ class Order {
       branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
       driver: json['driver'] != null ? Driver.fromJson(json['driver']) : null,
     );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    if (value == null) return DateTime.now();
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    if (value is Map) {
+      // Firestore Timestamp format: {_seconds: ..., _nanoseconds: ...}
+      final seconds = value['_seconds'] ?? value['seconds'];
+      if (seconds != null) {
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+      }
+    }
+    return DateTime.now();
   }
 }
 
@@ -169,12 +184,12 @@ class OrderItem {
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
-      id: json['id'],
-      orderId: json['orderId'],
-      productId: json['productId'],
-      comboId: json['comboId'],
-      quantity: json['quantity'],
-      price: json['price'],
+      id: json['id']?.toString() ?? '',
+      orderId: json['orderId']?.toString() ?? '',
+      productId: json['productId']?.toString(),
+      comboId: json['comboId']?.toString(),
+      quantity: json['quantity'] ?? 0,
+      price: json['price'] ?? 0,
       product: json['product'] != null
           ? Product.fromJson(json['product'])
           : null,

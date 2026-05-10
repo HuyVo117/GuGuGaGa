@@ -58,9 +58,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
 
     Position position = await Geolocator.getCurrentPosition();
-    setState(() {
-      _currentCenter = LatLng(position.latitude, position.longitude);
-    });
+    if (mounted) {
+      setState(() {
+        _currentCenter = LatLng(position.latitude, position.longitude);
+      });
+    }
     _mapController.move(_currentCenter, 15);
     _getAddressFromLatLng(_currentCenter);
   }
@@ -68,9 +70,11 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Future<void> _getAddressFromLatLng(LatLng point) async {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
-      setState(() {
-        _isLoading = true;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
       try {
         final url = Uri.parse(
             'https://api.opencagedata.com/geocode/v1/json?q=${point.latitude}+${point.longitude}&key=${AppConstants.openCageApiKey}&language=vi');
@@ -78,26 +82,32 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         if (response.statusCode == 200) {
           final data = json.decode(response.body);
           if (data['results'] != null && data['results'].isNotEmpty) {
-            setState(() {
-              _address = data['results'][0]['formatted'];
-            });
+            if (mounted) {
+              setState(() {
+                _address = data['results'][0]['formatted'];
+              });
+            }
           }
         }
       } catch (e) {
         print('Error fetching address: $e');
       } finally {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     });
   }
 
   Future<void> _searchAddress(String query) async {
     if (query.isEmpty) return;
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
     try {
       final url = Uri.parse(
           'https://api.opencagedata.com/geocode/v1/json?q=$query&key=${AppConstants.openCageApiKey}&language=vi');
@@ -110,27 +120,33 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
           final lng = result['geometry']['lng'];
           final newPos = LatLng(lat, lng);
           
-          setState(() {
-            _currentCenter = newPos;
-            _address = result['formatted'];
-          });
+          if (mounted) {
+            setState(() {
+              _currentCenter = newPos;
+              _address = result['formatted'];
+            });
+          }
           _mapController.move(newPos, 15);
         }
       }
     } catch (e) {
       print('Error searching address: $e');
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
   void _onMapPositionChanged(MapCamera position, bool hasGesture) {
     if (hasGesture) {
-      setState(() {
-        _currentCenter = position.center;
-      });
+      if (mounted) {
+        setState(() {
+          _currentCenter = position.center;
+        });
+      }
       _getAddressFromLatLng(_currentCenter);
     }
   }

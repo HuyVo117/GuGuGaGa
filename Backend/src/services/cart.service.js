@@ -41,17 +41,15 @@ async function populateCart(cart) {
 export const cartService = {
   // Tạo cart hoặc lấy cart hiện có
   createCart: async (userId, branchId) => {
-    const snap = await cartsRef
-      .where("userId", "==", userId)
-      .where("branchId", "==", branchId)
-      .limit(1)
-      .get();
-
-    if (!snap.empty) {
-      const doc = snap.docs[0];
-      const cart = { id: doc.id, ...doc.data() };
-      await populateCart(cart);
-      return cart;
+    // Tìm cart đã tồn tại bằng cách duyệt tất cả carts của user
+    const userCarts = await cartsRef.where("userId", "==", userId).get();
+    
+    for (const doc of userCarts.docs) {
+      if (doc.data().branchId === branchId) {
+        const cart = { id: doc.id, ...doc.data() };
+        await populateCart(cart);
+        return cart;
+      }
     }
 
     const now = new Date();
@@ -69,16 +67,19 @@ export const cartService = {
 
   // Thêm sản phẩm vào cart
   addToCart: async (userId, branchId, productId, comboId, quantity = 1) => {
-    // Lấy cart hiện tại
-    const snap = await cartsRef
-      .where("userId", "==", userId)
-      .where("branchId", "==", branchId)
-      .limit(1)
-      .get();
+    // Lấy cart hiện tại - dùng cách scan để tránh lỗi composite index
+    const userCarts = await cartsRef.where("userId", "==", userId).get();
+    let cartDoc = null;
+    
+    for (const doc of userCarts.docs) {
+      if (doc.data().branchId === branchId) {
+        cartDoc = doc;
+        break;
+      }
+    }
 
-    if (snap.empty) throw new Error("Vui lòng chọn chi nhánh trước.");
+    if (!cartDoc) throw new Error("Vui lòng chọn chi nhánh trước.");
 
-    const cartDoc = snap.docs[0];
     const cart = { id: cartDoc.id, ...cartDoc.data() };
     await populateCart(cart);
 
@@ -191,16 +192,22 @@ export const cartService = {
 
   // Lấy cart theo branch
   getCart: async (userId, branchId) => {
-    const snap = await cartsRef
-      .where("userId", "==", userId)
-      .where("branchId", "==", branchId)
-      .limit(1)
-      .get();
+    // Dùng single-field query + filter thủ công để tránh lỗi composite index
+    const userCarts = await cartsRef.where("userId", "==", userId).get();
+    
+    let matchedDoc = null;
+    for (const doc of userCarts.docs) {
+      if (doc.data().branchId === branchId) {
+        matchedDoc = doc;
+        break;
+      }
+    }
 
-    if (snap.empty) return { totalAmount: 0, cartItem: [] };
+    if (!matchedDoc) {
+      return { totalAmount: 0, cartItem: [] };
+    }
 
-    const doc = snap.docs[0];
-    const cart = { id: doc.id, ...doc.data() };
+    const cart = { id: matchedDoc.id, ...matchedDoc.data() };
     await populateCart(cart);
     return cart;
   },
