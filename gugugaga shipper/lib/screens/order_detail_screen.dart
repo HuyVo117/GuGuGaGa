@@ -26,11 +26,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   final _routeService = RouteService();
   bool _isLoading = false;
   List<LatLng> _routePoints = [];
-  LatLng? _lastRouteStart;
-  LatLng? _lastRouteEnd;
+  double _routeDistanceKm = 0;
+  double _routeDurationMin = 0;
+  bool _isLoadingRoute = true;
   double _currentHeading = 0.0;
   StreamSubscription<CompassEvent>? _compassSubscription;
   bool _showFullInfo = false;
+  final MapController _mapController = MapController();
 
   @override
   void initState() {
@@ -41,6 +43,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       });
     }
     _initCompass();
+    // Fetch route ngay khi mở screen
+    _initialRouteFetch();
   }
 
   void _initCompass() {
@@ -51,6 +55,29 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         });
       }
     });
+  }
+
+  /// Fetch route ngay khi mở screen, dùng vị trí branch nếu chưa có GPS
+  Future<void> _initialRouteFetch() async {
+    final branch = widget.order['branch'];
+    final branchLat = branch['latitude'] != null ? branch['latitude'] as double : 10.762622;
+    final branchLng = branch['longitude'] != null ? branch['longitude'] as double : 106.660172;
+    final orderLat = widget.order['latitude'] != null ? widget.order['latitude'] as double : branchLat;
+    final orderLng = widget.order['longitude'] != null ? widget.order['longitude'] as double : branchLng;
+
+    // Lấy vị trí GPS hiện tại nếu có
+    LatLng startPos;
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      ).timeout(const Duration(seconds: 5));
+      startPos = LatLng(pos.latitude, pos.longitude);
+    } catch (_) {
+      startPos = LatLng(branchLat, branchLng);
+    }
+
+    final endPos = LatLng(orderLat, orderLng);
+    await _fetchRoute(startPos, endPos, force: true);
   }
 
   @override
@@ -95,21 +122,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Future<void> _fetchRoute(LatLng start, LatLng end) async {
-    if (_lastRouteStart != null && _lastRouteEnd != null) {
-      final Distance distance = Distance();
-      if (distance.as(LengthUnit.Meter, start, _lastRouteStart!) < 20 &&
-          distance.as(LengthUnit.Meter, end, _lastRouteEnd!) < 20) {
+  Future<void> _fetchRoute(LatLng start, LatLng end, {bool force = false}) async {
+    if (!force) {
+      // Chỉ re-fetch khi vị trí thay đổi > 30m
+      final cached = _routeService.getCachedRoute();
+      if (cached != null && cached.isNotEmpty && _routePoints.isNotEmpty) {
         return;
       }
     }
 
-    final points = await _routeService.getRoute(start, end);
+    final result = await _routeService.getRoute(start, end);
     if (mounted) {
       setState(() {
-        _routePoints = points;
-        _lastRouteStart = start;
-        _lastRouteEnd = end;
+        _routePoints = result.points;
+        _routeDistanceKm = result.distanceKm;
+        _routeDurationMin = result.durationMin;
+        _isLoadingRoute = false;
       });
     }
   }
@@ -130,6 +158,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       case 'CANCELLED': return Colors.red;
       default: return Colors.grey;
     }
+  }
+
+  String _formatDistance(double km) {
+    if (km < 1) return '${(km * 1000).round()} m';
+    return '${km.toStringAsFixed(1)} km';
+  }
+
+  String _formatDuration(double min) {
+    if (min < 1) return '< 1 phút';
+    if (min < 60) return '${min.round()} phút';
+    final h = (min / 60).floor();
+    final m = (min % 60).round();
+    return '${h}h ${m}p';
   }
 
   @override
@@ -205,34 +246,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
               final samePoint = (currentPos.latitude == orderPos.latitude && currentPos.longitude == orderPos.longitude);
 
+              // Fetch route khi GPS cập nhật
               if (snapshot.hasData) {
                 _fetchRoute(currentPos, orderPos);
               }
 
+              // Tạo bounds bao gồm tất cả các điểm
+              final boundsPoints = <LatLng>[currentPos, orderPos, branchPos];
+              if (_routePoints.isNotEmpty) {
+                boundsPoints.addAll(_routePoints);
+              }
+
               return FlutterMap(
+                mapController: _mapController,
                 options: MapOptions(
                   initialCenter: currentPos,
                   initialZoom: 15.0,
                   initialCameraFit: samePoint
                       ? null
                       : CameraFit.bounds(
-                          bounds: LatLngBounds.fromPoints([currentPos, orderPos]),
+                          bounds: LatLngBounds.fromPoints(boundsPoints),
                           padding: const EdgeInsets.fromLTRB(50, 120, 50, 350),
                         ),
                 ),
                 children: [
                   TileLayer(
                     urlTemplate:
-                        'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/256/{z}/{x}/{y}@2x?access_token=${AppConstants.mapboxAccessToken}',
+                        'https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/256/{z}/{x}/{y}@2x?access_token=${AppConstants.mapboxAccessToken}',
                     userAgentPackageName: 'com.example.GuGuGaGa_shipper',
                   ),
+                  // Route polyline - luôn hiển thị đường đi
                   PolylineLayer(
                     polylines: [
-                      Polyline(
-                        points: _routePoints.isNotEmpty ? _routePoints : [currentPos, orderPos],
-                        strokeWidth: 5.0,
-                        color: const Color(0xFF4285F4),
-                      ),
+                      if (_routePoints.isNotEmpty) ...[
+                        // Shadow line (bóng đổ)
+                        Polyline(
+                          points: _routePoints,
+                          strokeWidth: 8.0,
+                          color: const Color(0xFF4285F4).withOpacity(0.3),
+                        ),
+                        // Main route line (đường cong theo tuyến đường)
+                        Polyline(
+                          points: _routePoints,
+                          strokeWidth: 5.0,
+                          color: const Color(0xFF4285F4),
+                        ),
+                      ] else ...[
+                        // Fallback: đường thẳng khi chưa có route
+                        Polyline(
+                          points: [currentPos, orderPos],
+                          strokeWidth: 3.0,
+                          color: Colors.grey.withOpacity(0.5),
+                        ),
+                      ],
                     ],
                   ),
                   MarkerLayer(
@@ -298,6 +364,68 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             },
           ),
 
+          // Route info badge nhỏ gọn ở góc trái trên
+          if (_routePoints.isNotEmpty && _routeDistanceKm > 0)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 56,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.route, color: Color(0xFF4285F4), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDistance(_routeDistanceKm),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1A1A2E)),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(width: 1, height: 12, color: Colors.grey.shade300),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.access_time, color: Color(0xFFFF6B00), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDuration(_routeDurationMin),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: Color(0xFF1A1A2E)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Loading route indicator nhỏ gọn
+          if (_isLoadingRoute)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 56,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 8),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF4285F4))),
+                    SizedBox(width: 6),
+                    Text('Đang tải...', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+
           // Bottom Sheet
           DraggableScrollableSheet(
             initialChildSize: 0.38,
@@ -336,9 +464,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Đơn hàng #${widget.order['id']}',
-                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
+                            Expanded(
+                              child: Text(
+                                'Đơn hàng #${widget.order['id']}',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

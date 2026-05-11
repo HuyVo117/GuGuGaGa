@@ -8,12 +8,15 @@ class AppConstants {
 
   static String get baseUrl {
     final envUrl = dotenv.env['BASE_URL'];
-    if (envUrl != null && envUrl.isNotEmpty) {
-      return envUrl;
-    }
 
     if (kIsWeb) {
+      // On web (Chrome), always use localhost since the browser
+      // runs on the same machine as the backend server.
       return 'http://localhost:5000/api';
+    }
+
+    if (envUrl != null && envUrl.isNotEmpty) {
+      return envUrl;
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
