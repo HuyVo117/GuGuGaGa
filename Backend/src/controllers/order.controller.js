@@ -131,4 +131,41 @@ export const orderController = {
       return ApiResponse.error(res, error);
     }
   },
+  getPaymentConfig: async (req, res) => {
+    try {
+      const bankId = process.env.BANK_ID || "MB";
+      const accountNo = process.env.BANK_ACCOUNT_NO || "1234567890";
+      const accountName = process.env.BANK_ACCOUNT_NAME || "GUGUGAGA FOOD STORE";
+      
+      return ApiResponse.success(res, {
+        bankId,
+        accountNo,
+        accountName,
+      }, "Lấy cấu hình thanh toán thành công.");
+    } catch (error) {
+      console.error("[getPaymentConfig]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  checkPayment: async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      const force = req.query.force === "true";
+      const result = await orderService.checkPayment(orderId, force);
+      return ApiResponse.success(res, result, "Kiểm tra thanh toán thành công.");
+    } catch (error) {
+      console.error("[checkPayment]", error);
+      return ApiResponse.error(res, error);
+    }
+  },
+  cassoWebhook: async (req, res) => {
+    try {
+      console.log("[Casso Webhook Received]:", JSON.stringify(req.body));
+      const result = await orderService.handleCassoWebhook(req.body);
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("[cassoWebhook Error]:", error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  },
 };

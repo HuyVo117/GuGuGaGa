@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../home/home_screen.dart';
 import '../menu/menu_screen.dart';
 import '../notification/notification_screen.dart';
@@ -18,13 +17,81 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  late List<Widget> _screens;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const MenuScreen(),
-    const NotificationScreen(),
-    const AccountScreen(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AuthProvider>(context, listen: false).tryAutoLogin();
+    });
+    _screens = [
+      HomeScreen(
+        onCategorySelected: (categoryId) {
+          setState(() {
+            _currentIndex = 1;
+            _screens[1] = MenuScreen(initialCategoryId: categoryId);
+          });
+        },
+        onParentCategorySelected: (parentCategory) {
+          setState(() {
+            _currentIndex = 1;
+            _screens[1] = MenuScreen(initialParentCategory: parentCategory);
+          });
+        },
+      ),
+      const MenuScreen(),
+      const NotificationScreen(),
+      const AccountScreen(),
+    ];
+  }
+
+  Widget _buildNavItem(int index, IconData icon, String label) {
+    final isSelected = _currentIndex == index;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white.withOpacity(0.18) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: isSelected ? 1.2 : 1.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutBack,
+                child: Icon(
+                  icon,
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.65),
+                  size: isSelected ? 26 : 22,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white.withOpacity(0.65),
+                  fontSize: 10,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,19 +103,6 @@ class _MainScreenState extends State<MainScreen> {
       return const BranchSelectionScreen();
     }
     print('DEBUG: MainScreen - showing Scaffold');
-
-    // Load cart if not loaded
-    // We use a post-frame callback to avoid calling setState during build
-    if (authProvider.isAuthenticated && authProvider.token != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final cartProvider = Provider.of<CartProvider>(context, listen: false);
-        // Only load if we haven't loaded for this branch yet? 
-        // For now, let's just load it. To avoid infinite loop, we might need a flag.
-        // Or better, just call it. But calling it every build is bad.
-        // Let's rely on the fact that MainScreen rebuilds when AuthProvider changes.
-        // But we need to call it ONCE when branch changes.
-      });
-    }
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
@@ -62,36 +116,35 @@ class _MainScreenState extends State<MainScreen> {
         child: const Icon(Icons.chat_bubble, color: Colors.white),
       ),
       body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.red.shade700,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Trang chủ',
+      bottomNavigationBar: Container(
+        height: 78,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.red.shade800, Colors.orange.shade700],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_menu),
-            label: 'Thực đơn',
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(0, Icons.home_outlined, 'Trang chủ'),
+              _buildNavItem(1, Icons.restaurant_menu_outlined, 'Thực đơn'),
+              _buildNavItem(2, Icons.notifications_none_outlined, 'Thông báo'),
+              _buildNavItem(3, Icons.person_outline, 'Tài khoản'),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Thông báo',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Tài khoản',
-          ),
-        ],
+        ),
       ),
     );
   }
 }
-

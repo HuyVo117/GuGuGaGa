@@ -37,8 +37,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
   void initState() {
     super.initState();
     _fetchOrderDetails();
-    // Poll every 10 seconds
-    _timer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    // Poll every 30 seconds
+    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
       _fetchOrderDetails(silent: true);
     });
   }

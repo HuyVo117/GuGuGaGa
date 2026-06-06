@@ -52,6 +52,7 @@ export const protectRoute = async (req, res, next) => {
       phone: userData.phone,
       email: userData.email,
       role: userData.role,
+      address: userData.address || null,
     };
 
     next(); // Cho phép tiếp tục vào controller

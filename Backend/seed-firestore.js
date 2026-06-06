@@ -65,7 +65,7 @@ async function main() {
   const now = new Date();
 
   // Create admin user
-  const adminRef = await db.collection("users").add({
+  await db.collection("users").add({
     name: "Admin",
     email: "admin@example.com",
     phone: "0900000000",
@@ -99,21 +99,57 @@ async function main() {
     updatedAt: now,
   });
 
-  // Create category
-  const categoryRef = await db.collection("categories").add({
-    name: "Chicken",
-  });
+  // 30 classes matching the AI model (and their corresponding mock display names/prices)
+  const categoriesToSeed = [
+    { name: "Bánh Bèo", productName: "Bánh Bèo Chén Miền Trung", price: 30000, desc: "Bánh bèo chén dẻo thơm, nhân tôm chấy đậm vị" },
+    { name: "Bánh Bột Lọc", productName: "Bánh Bột Lọc Trần Nhân Tôm Thịt", price: 35000, desc: "Bánh bột lọc dẻo trong suốt, tôm thịt thơm ngon" },
+    { name: "Bánh Căn", productName: "Bánh Căn Trứng Cút", price: 40000, desc: "Bánh căn nóng hổi kèm nước chấm xíu mại" },
+    { name: "Bánh Canh", productName: "Bánh Canh Cua Bột Gạo", price: 50000, desc: "Bánh canh cua nước sệt ngọt thanh hấp dẫn" },
+    { name: "Bánh Chưng", productName: "Bánh Chưng Đậu Xanh Thịt Mỡ", price: 60000, desc: "Bánh chưng truyền thống dẻo ngon chuẩn vị" },
+    { name: "Bánh Cuốn", productName: "Bánh Cuốn Nóng Thịt Mộc Nhĩ", price: 30000, desc: "Bánh cuốn tráng mỏng kèm chả lụa thơm lừng" },
+    { name: "Bánh Đúc", productName: "Bánh Đúc Nóng Hà Nội", price: 25000, desc: "Bánh đúc nóng kèm thịt băm, mộc nhĩ, hành phi" },
+    { name: "Bánh Giò", productName: "Bánh Giò Nóng Nhân Thịt Trứng Cút", price: 20000, desc: "Bánh giò nóng hổi dẻo thơm ngậy béo" },
+    { name: "Bánh Khọt", productName: "Bánh Khọt Vũng Tàu Tôm Tươi", price: 45000, desc: "Bánh khọt giòn rụm với tôm tươi thơm ngậy" },
+    { name: "Bánh Mì", productName: "Bánh Mì Thịt Nướng Đặc Biệt", price: 25000, desc: "Bánh mì giòn rụm nhân thịt nướng đậm đà" },
+    { name: "Bánh Pía", productName: "Bánh Pía Sầu Riêng Trứng Muối", price: 15000, desc: "Bánh pía Sóc Trăng thơm ngậy sầu riêng" },
+    { name: "Bánh Tét", productName: "Bánh Tét Nhân Thịt Mỡ Đậu Xanh", price: 55000, desc: "Bánh tét truyền thống thơm dẻo" },
+    { name: "Bánh Tráng Nướng", productName: "Bánh Tráng Nướng Đà Lạt Mỡ Hành", price: 20000, desc: "Bánh tráng nướng giòn rụm đầy đủ topping" },
+    { name: "Bánh Xèo", productName: "Bánh Xèo Nam Bộ Tôm Thịt", price: 50000, desc: "Bánh xèo giòn tan thơm nước cốt dừa" },
+    { name: "Bún Bò Huế", productName: "Bún Bò Huế Đặc Biệt Giò Chả", price: 55000, desc: "Bún bò huế chuẩn vị nước dùng đậm đà" },
+    { name: "Bún Đậu Mắm Tôm", productName: "Mẹt Bún Đậu Mắm Tôm Đầy Đủ", price: 65000, desc: "Bún đậu với thịt luộc, chả cốm, mắm tôm pha ngon" },
+    { name: "Bún Mắm", productName: "Bún Mắm Miền Tây Sạch Sẽ", price: 60000, desc: "Bún mắm đậm đà tôm, mực, heo quay ngon tuyệt" },
+    { name: "Bún Riêu", productName: "Bún Riêu Cua Sườn Sụn", price: 45000, desc: "Bún riêu cua thanh mát thơm ngon" },
+    { name: "Bún Thịt Nướng", productName: "Bún Thịt Nướng Chả Giò", price: 45000, desc: "Bún thịt nướng thơm lừng kèm chả giò giòn rụm" },
+    { name: "Cá Kho Tộ", productName: "Cơm Cá Kho Tộ Đậm Đà", price: 55000, desc: "Cá lóc kho tộ nước sốt sệt cay ăn cùng cơm nóng" },
+    { name: "Canh Chua", productName: "Cơm Canh Chua Cá Hồi", price: 60000, desc: "Canh chua cá hồi thanh mát chuẩn vị cơm nhà" },
+    { name: "Cao Lầu", productName: "Cao Lầu Hội An Thịt Xá Xíu", price: 50000, desc: "Cao lầu Hội An dai giòn thơm ngon đậm đà" },
+    { name: "Cháo Lòng", productName: "Cháo Lòng Nóng Hổi Đầy Đủ", price: 35000, desc: "Cháo lòng thơm ngon bổ dưỡng kèm đĩa lòng thập cẩm" },
+    { name: "Cơm Tấm", productName: "Cơm Tấm Sườn Bì Chả Trứng", price: 45000, desc: "Cơm tấm sườn nướng thơm lừng chuẩn vị Sài Gòn" },
+    { name: "Gỏi Cuốn", productName: "Gỏi Cuốn Tôm Thịt Nước Tương", price: 10000, desc: "Gỏi cuốn thanh mát nhiều tôm thịt" },
+    { name: "Hủ Tiếu", productName: "Hủ Tiếu Nam Vang Khô/Nước", price: 55000, desc: "Hủ tiếu Nam Vang nước dùng ngọt thanh xương ống" },
+    { name: "Mỳ Quảng", productName: "Mỳ Quảng Tôm Thịt Trứng Cút", price: 40000, desc: "Mỳ quảng đậm đà chuẩn vị miền Trung" },
+    { name: "Nem Chua", productName: "Nem Chua Rán Ngon Giòn", price: 30000, desc: "Đĩa nem chua rán nóng hổi thơm ngon ăn vặt" },
+    { name: "Phở", productName: "Phở Bò Tái Nạm Gầu Cực Chất", price: 65000, desc: "Phở bò truyền thống nước dùng hầm xương trong 24h" },
+    { name: "Xôi Xéo", productName: "Xôi Xéo Ruốc Hành Phi Mỡ Gà", price: 20000, desc: "Xôi xéo dẻo thơm hành phi vàng ruộm ngậy béo" }
+  ];
 
-  // Create product
-  const productRef = await db.collection("products").add({
-    categoryId: categoryRef.id,
-    name: "Ga ran truyen thong",
-    price: 70000,
-    desc: "Ga ran gion rum",
-    image: null,
-    createdAt: now,
-    updatedAt: now,
-  });
+  let productRef = null;
+
+  for (const cat of categoriesToSeed) {
+    const catRef = await db.collection("categories").add({ name: cat.name });
+    const prodRef = await db.collection("products").add({
+      categoryId: catRef.id,
+      name: cat.productName,
+      price: cat.price,
+      desc: cat.desc,
+      image: null,
+      createdAt: now,
+      updatedAt: now
+    });
+    if (!productRef) {
+      productRef = prodRef;
+    }
+  }
 
   // Create driver
   const driverRef = await db.collection("drivers").add({

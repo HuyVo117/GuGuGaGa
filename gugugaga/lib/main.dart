@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
 import 'providers/cart_provider.dart';
+import 'providers/favorite_provider.dart';
 import 'screens/main/main_screen.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -15,18 +17,39 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  
+  final prefs = await SharedPreferences.getInstance();
+  final userDataStr = prefs.getString('userData');
+  final selectedBranchStr = prefs.getString('selectedBranch');
+  
+  runApp(MyApp(
+    initialUserDataStr: userDataStr,
+    initialBranchStr: selectedBranchStr,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final String? initialUserDataStr;
+  final String? initialBranchStr;
+
+  const MyApp({
+    super.key,
+    this.initialUserDataStr,
+    this.initialBranchStr,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(
+            initialUserDataStr: initialUserDataStr,
+            initialBranchStr: initialBranchStr,
+          ),
+        ),
         ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => FavoriteProvider()),
       ],
       child: MaterialApp(
         title: 'GuGuGaGa',

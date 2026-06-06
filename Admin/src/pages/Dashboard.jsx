@@ -10,44 +10,6 @@ import {
 import { useEffect, useState } from "react";
 import { dashboardService } from "../services/dashboardService";
 
-const recentOrders = [
-  {
-    id: "#ORD-001",
-    customer: "Nguyễn Văn A",
-    product: "Combo Gia Đình",
-    amount: "199,000₫",
-    status: "completed",
-  },
-  {
-    id: "#ORD-002",
-    customer: "Trần Thị B",
-    product: "Gà rán giòn cay + Khoai tây",
-    amount: "134,000₫",
-    status: "pending",
-  },
-  {
-    id: "#ORD-003",
-    customer: "Lê Văn C",
-    product: "Combo Đôi",
-    amount: "149,000₫",
-    status: "processing",
-  },
-  {
-    id: "#ORD-004",
-    customer: "Phạm Thị D",
-    product: "Combo Cá Nhân",
-    amount: "99,000₫",
-    status: "completed",
-  },
-  {
-    id: "#ORD-005",
-    customer: "Hoàng Văn E",
-    product: "Gà rán không cay + Đồ uống",
-    amount: "114,000₫",
-    status: "pending",
-  },
-];
-
 export default function Dashboard() {
   const [statsData, setStatsData] = useState({
     totalRevenue: 0,
@@ -55,7 +17,10 @@ export default function Dashboard() {
     totalProducts: 0,
     totalOrders: 0,
   });
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [revenuePeriod, setRevenuePeriod] = useState("all");
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -63,6 +28,8 @@ export default function Dashboard() {
         const response = await dashboardService.getStats();
         if (response.success) {
           setStatsData(response.data);
+          setRecentOrders(response.data.recentOrders || []);
+          setActivities(response.data.activities || []);
         }
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
@@ -73,14 +40,47 @@ export default function Dashboard() {
     fetchStats();
   }, []);
 
+  const getRevenueData = () => {
+    switch (revenuePeriod) {
+      case "today":
+        return {
+          title: "Doanh thu hôm nay",
+          value: (statsData.revenueToday || 0).toLocaleString("vi-VN") + "₫",
+        };
+      case "week":
+        return {
+          title: "Doanh thu tuần này",
+          value: (statsData.revenueThisWeek || 0).toLocaleString("vi-VN") + "₫",
+        };
+      case "month":
+        return {
+          title: "Doanh thu tháng này",
+          value: (statsData.revenueThisMonth || 0).toLocaleString("vi-VN") + "₫",
+        };
+      case "year":
+        return {
+          title: "Doanh thu năm nay",
+          value: (statsData.revenueThisYear || 0).toLocaleString("vi-VN") + "₫",
+        };
+      default:
+        return {
+          title: "Tổng doanh thu",
+          value: (statsData.totalRevenue || 0).toLocaleString("vi-VN") + "₫",
+        };
+    }
+  };
+
+  const revenueInfo = getRevenueData();
+
   const stats = [
     {
-      title: "Tổng doanh thu",
-      value: statsData.totalRevenue.toLocaleString("vi-VN") + "₫",
+      title: revenueInfo.title,
+      value: revenueInfo.value,
       change: "+0%", // Placeholder
       trend: "up",
       icon: DollarSign,
       color: "bg-green-500",
+      isRevenue: true,
     },
     {
       title: "Khách hàng",
@@ -128,11 +128,26 @@ export default function Dashboard() {
               key={stat.title}
               className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">
-                    {stat.title}
-                  </p>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <p className="text-sm font-medium text-gray-600">
+                      {stat.title}
+                    </p>
+                    {stat.isRevenue && (
+                      <select
+                        value={revenuePeriod}
+                        onChange={(e) => setRevenuePeriod(e.target.value)}
+                        className="text-xs bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                      >
+                        <option value="all">Tất cả</option>
+                        <option value="today">Hôm nay</option>
+                        <option value="week">Tuần này</option>
+                        <option value="month">Tháng này</option>
+                        <option value="year">Năm nay</option>
+                      </select>
+                    )}
+                  </div>
                   <p className="text-2xl font-bold text-gray-900 mt-2">
                     {stat.value}
                   </p>
@@ -219,37 +234,27 @@ export default function Dashboard() {
             Hoạt động
           </h2>
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <TrendingUp size={20} className="text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">
-                  Doanh thu tăng 18.5%
-                </p>
-                <p className="text-sm text-gray-500">2 giờ trước</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Users size={20} className="text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">25 khách hàng mới</p>
-                <p className="text-sm text-gray-500">5 giờ trước</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Package size={20} className="text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">
-                  3 món ăn mới được thêm
-                </p>
-                <p className="text-sm text-gray-500">1 ngày trước</p>
-              </div>
-            </div>
+            {activities.length === 0 ? (
+              <p className="text-sm text-gray-500">Chưa có hoạt động nào</p>
+            ) : (
+              activities.map((activity, idx) => {
+                const IconComponent = activity.type === "order" ? ShoppingCart : Users;
+                const bgColor = activity.type === "order" ? "bg-blue-100" : "bg-green-100";
+                const iconColor = activity.type === "order" ? "text-blue-600" : "text-green-600";
+                
+                return (
+                  <div key={idx} className="flex items-center gap-4">
+                    <div className={`w-12 h-12 ${bgColor} rounded-lg flex items-center justify-center`}>
+                      <IconComponent size={20} className={iconColor} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{activity.message}</p>
+                      <p className="text-sm text-gray-500">{activity.time}</p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

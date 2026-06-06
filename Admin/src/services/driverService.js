@@ -10,7 +10,7 @@ export const driverService = {
     return response.data;
   },
   create: async (data) => {
-    const response = await api.post("/drivers", data);
+    const response = await api.post("/drivers/create", data);
     return response.data;
   },
   update: async (id, data) => {

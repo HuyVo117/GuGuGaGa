@@ -25,12 +25,15 @@ export default function Products() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  const filteredProducts = products.filter(
-    (product) =>
+  const filteredProducts = products.filter((product) => {
+    const categoryName = typeof product.category === "object"
+      ? (product.category?.name || "")
+      : (product.category || "");
+    return (
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.category &&
-        product.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      categoryName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   // Pagination
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);

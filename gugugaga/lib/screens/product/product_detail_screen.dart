@@ -4,6 +4,11 @@ import 'package:intl/intl.dart';
 import '../../models/product.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/favorite_provider.dart';
+import '../checkout/checkout_screen.dart';
+import '../chat/chat_screen.dart';
+import '../../models/review.dart';
+import '../../services/api_service.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -16,6 +21,30 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
+  List<Review> _reviews = [];
+  bool _isLoadingReviews = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    try {
+      final apiService = ApiService();
+      final reviews = await apiService.getProductReviews(widget.product.id);
+      setState(() {
+        _reviews = reviews;
+        _isLoadingReviews = false;
+      });
+    } catch (e) {
+      print('DEBUG: Lỗi tải đánh giá sản phẩm: $e');
+      setState(() {
+        _isLoadingReviews = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +56,22 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         title: const Text('Chi tiết sản phẩm'),
         backgroundColor: Colors.red.shade700,
         foregroundColor: Colors.white,
+        actions: [
+          Consumer<FavoriteProvider>(
+            builder: (context, favoriteProvider, child) {
+              final isFav = favoriteProvider.isFavorite(widget.product.id);
+              return IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.red.shade200 : Colors.white,
+                ),
+                onPressed: () {
+                  favoriteProvider.toggleFavorite(widget.product.id);
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -72,6 +117,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 20),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${widget.product.rating}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${widget.product.reviewCount} đánh giá)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -160,45 +227,209 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  // Add to Cart Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                        await cartProvider.addProduct(
-                          widget.product,
-                          quantity: _quantity,
-                          branchId: authProvider.selectedBranch?.id,
-                          token: authProvider.token,
-                        );
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Đã thêm vào giỏ hàng'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade700,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Thêm vào giỏ hàng',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  const Divider(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Đánh giá món ăn',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  if (_isLoadingReviews)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_reviews.isEmpty)
+                    Text(
+                      'Chưa có đánh giá nào cho sản phẩm này.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade500,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _reviews.length,
+                      separatorBuilder: (context, index) => const Divider(),
+                      itemBuilder: (context, index) {
+                        final rev = _reviews[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    rev.userName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    DateFormat('dd/MM/yyyy').format(rev.createdAt),
+                                    style: TextStyle(
+                                      color: Colors.grey.shade500,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: List.generate(5, (starIdx) {
+                                  return Icon(
+                                    starIdx < rev.rating ? Icons.star : Icons.star_border,
+                                    color: Colors.amber,
+                                    size: 16,
+                                  );
+                                }),
+                              ),
+                              if (rev.comment.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  rev.comment,
+                                  style: TextStyle(
+                                    color: Colors.grey.shade800,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 32),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade300,
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Chat button
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatScreen(product: widget.product),
+                  ),
+                );
+              },
+              child: Container(
+                width: 75,
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.chat_bubble_outline, color: Colors.red.shade700, size: 22),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Chat ngay',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 30,
+              color: Colors.grey.shade300,
+            ),
+            // Add to Cart
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                  await cartProvider.addProduct(
+                    widget.product,
+                    quantity: _quantity,
+                    branchId: authProvider.selectedBranch?.id,
+                    token: authProvider.token,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Đã thêm vào giỏ hàng'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  color: Colors.red.shade50,
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_shopping_cart, color: Colors.red.shade700, size: 18),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Thêm vào giỏ',
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Buy Now
+            Expanded(
+              child: InkWell(
+                onTap: () async {
+                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                  await cartProvider.addProduct(
+                    widget.product,
+                    quantity: _quantity,
+                    branchId: authProvider.selectedBranch?.id,
+                    token: authProvider.token,
+                  );
+                  if (context.mounted) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CheckoutScreen(),
+                      ),
+                    );
+                  }
+                },
+                child: Container(
+                  color: Colors.red.shade700,
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'Mua ngay',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],

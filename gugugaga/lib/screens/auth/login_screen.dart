@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/user.dart';
-import '../branch/branch_selection_screen.dart';
 import '../main/main_screen.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';

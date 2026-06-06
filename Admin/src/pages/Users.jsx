@@ -12,6 +12,20 @@ const mockBranches = [
   { id: 2, name: "Chi nhánh Quận 2" },
 ];
 
+const formatDate = (isoString) => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) return isoString;
+  return date.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
 export default function Users() {
   const { users, loading, createUser, updateUser, deleteUser } = useUsers();
   const [searchTerm, setSearchTerm] = useState("");
@@ -205,11 +219,11 @@ export default function Users() {
                         {getRoleLabel(user.role)}
                       </span>
                       <div className="text-xs text-gray-400 sm:hidden mt-1">
-                        {user.createdAt}
+                        {formatDate(user.createdAt)}
                       </div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden lg:table-cell">
-                      <div className="text-sm text-gray-500">{user.createdAt}</div>
+                      <div className="text-sm text-gray-500">{formatDate(user.createdAt)}</div>
                     </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <DropdownMenu.Root>

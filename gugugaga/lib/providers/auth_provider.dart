@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
 import '../models/branch.dart';
 
@@ -6,7 +8,6 @@ import '../services/api_service.dart';
 
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../services/firebase_auth_service.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _user;
@@ -17,6 +18,27 @@ class AuthProvider with ChangeNotifier {
   final FirebaseAuthService _firebaseAuthService = FirebaseAuthService();
   
   String? _verificationId;
+
+  AuthProvider({String? initialUserDataStr, String? initialBranchStr}) {
+    if (initialUserDataStr != null) {
+      try {
+        final extractedUserData = json.decode(initialUserDataStr) as Map<String, dynamic>;
+        _token = extractedUserData['token'];
+        _user = User.fromJson(extractedUserData['user']);
+        _isAuthenticated = true;
+      } catch (e) {
+        print('DEBUG: AuthProvider init error: $e');
+      }
+    }
+    if (initialBranchStr != null) {
+      try {
+        final extractedBranchData = json.decode(initialBranchStr) as Map<String, dynamic>;
+        _selectedBranch = Branch.fromJson(extractedBranchData);
+      } catch (e) {
+        print('DEBUG: AuthProvider branch init error: $e');
+      }
+    }
+  }
 
   User? get user => _user;
   String? get token => _token;
@@ -29,6 +51,10 @@ class AuthProvider with ChangeNotifier {
       _user = User.fromJson(data['user']);
       _token = data['token'];
       _isAuthenticated = true;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userData', json.encode(data));
+
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -49,6 +75,9 @@ class AuthProvider with ChangeNotifier {
       _user = User.fromJson(data['user']);
       _token = data['token'];
       _isAuthenticated = true;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userData', json.encode(data));
 
       // Đăng xuất Firebase (dùng JWT của backend)
       await firebase_auth.FirebaseAuth.instance.signOut();
@@ -122,6 +151,10 @@ class AuthProvider with ChangeNotifier {
       _user = User.fromJson(data['user']);
       _token = data['token'];
       _isAuthenticated = true;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userData', json.encode(data));
+
       notifyListeners();
     } catch (e) {
       rethrow;
@@ -156,12 +189,19 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  void logout() {
+  void logout() async {
     _user = null;
     _token = null;
     _selectedBranch = null;
     _isAuthenticated = false;
-    _firebaseAuthService.signOut();
+    await _firebaseAuthService.signOut();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('userData');
+      await prefs.remove('selectedBranch');
+    } catch (e) {
+      print('DEBUG: AuthProvider.logout - Error removing preferences: $e');
+    }
     notifyListeners();
   }
 
@@ -170,6 +210,22 @@ class AuthProvider with ChangeNotifier {
     _selectedBranch = branch;
     notifyListeners();
     print('DEBUG: AuthProvider.selectBranch - notifyListeners called');
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('selectedBranch', json.encode({
+        'id': branch.id,
+        'name': branch.name,
+        'phone': branch.phone,
+        'address': branch.address,
+        'latitude': branch.latitude,
+        'longitude': branch.longitude,
+        'createdAt': branch.createdAt.toIso8601String(),
+        'updatedAt': branch.updatedAt.toIso8601String(),
+      }));
+    } catch (e) {
+      print('DEBUG: AuthProvider.selectBranch - Error saving branch: $e');
+    }
     
     // Create cart for this branch if user is authenticated
     if (_isAuthenticated && _token != null) {
@@ -186,14 +242,73 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  void clearBranch() {
+  void clearBranch() async {
     _selectedBranch = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('selectedBranch');
+    } catch (e) {
+      print('DEBUG: AuthProvider.clearBranch - Error clearing branch: $e');
+    }
     notifyListeners();
+  }
+
+  Future<bool> tryAutoLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!prefs.containsKey('userData')) {
+        return false;
+      }
+      final extractedUserData = json.decode(prefs.getString('userData')!) as Map<String, dynamic>;
+      _token = extractedUserData['token'];
+      _user = User.fromJson(extractedUserData['user']);
+      _isAuthenticated = true;
+
+      if (prefs.containsKey('selectedBranch')) {
+        final extractedBranchData = json.decode(prefs.getString('selectedBranch')!) as Map<String, dynamic>;
+        _selectedBranch = Branch.fromJson(extractedBranchData);
+      }
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('DEBUG: Error in tryAutoLogin: $e');
+      return false;
+    }
   }
 
   void updateUser(User user) {
     _user = user;
     notifyListeners();
+  }
+
+  Future<void> updateProfile({
+    required String name,
+    required String email,
+    required String address,
+  }) async {
+    try {
+      if (_token == null) return;
+      final updatedUserData = await _apiService.updateProfile(
+        name: name,
+        email: email,
+        address: address,
+        token: _token!,
+      );
+      _user = User.fromJson(updatedUserData);
+      
+      // Update SharedPreferences so user data persists
+      final prefs = await SharedPreferences.getInstance();
+      final userDataStr = prefs.getString('userData');
+      if (userDataStr != null) {
+        final userData = json.decode(userDataStr) as Map<String, dynamic>;
+        userData['user'] = updatedUserData;
+        await prefs.setString('userData', json.encode(userData));
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
   }
 }
 

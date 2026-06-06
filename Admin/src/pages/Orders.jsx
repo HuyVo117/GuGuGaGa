@@ -89,6 +89,20 @@ export default function Orders() {
     }).format(price);
   };
 
+  const formatDate = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return isoString;
+    return date.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
   const handleViewDetail = (order) => {
     setSelectedOrder(order);
     setDetailDialogOpen(true);
@@ -384,7 +398,7 @@ export default function Orders() {
                   <div>
                     <p className="text-sm text-gray-500">Ngày tạo</p>
                     <p className="font-semibold text-gray-900">
-                      {selectedOrder.createdAt}
+                      {formatDate(selectedOrder.createdAt)}
                     </p>
                   </div>
                   <div>

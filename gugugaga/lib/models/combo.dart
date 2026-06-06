@@ -49,12 +49,12 @@ class Combo {
   static DateTime _parseDate(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
+      return (DateTime.tryParse(value) ?? DateTime.now()).toLocal();
     }
     if (value is Map) {
       final seconds = value['_seconds'] ?? value['seconds'];
       if (seconds != null) {
-        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
       }
     }
     return DateTime.now();

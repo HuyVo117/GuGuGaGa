@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../order/order_history_screen.dart';
-import '../../main.dart';
+
 
 class PaymentSuccessScreen extends StatelessWidget {
   const PaymentSuccessScreen({super.key});
@@ -28,7 +28,7 @@ class PaymentSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Thanh toán thành công!',
+                'Đặt hàng thành công!',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,

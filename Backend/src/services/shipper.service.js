@@ -2,6 +2,7 @@ import db from "../configs/firestore.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../configs/env.js";
+import { notificationService } from "./notification.service.js";
 
 const driversRef = db.collection("drivers");
 const ordersRef = db.collection("orders");
@@ -124,6 +125,21 @@ export const shipperService = {
       updatedAt: new Date(),
     });
 
+    // Tạo thông báo cho user
+    try {
+      const orderShortId = orderId.substring(orderId.length - 6);
+      if (orderData.userId) {
+        await notificationService.createNotification(
+          orderData.userId,
+          "Tài xế đã nhận đơn",
+          `Tài xế đang giao đơn hàng #${orderShortId} cho bạn.`,
+          orderId
+        );
+      }
+    } catch (err) {
+      console.error("[shipper acceptOrder Notification Error]", err);
+    }
+
     const updatedDoc = await orderRef.get();
     const order = { id: updatedDoc.id, ...updatedDoc.data() };
     await populateOrder(order);
@@ -182,6 +198,31 @@ export const shipperService = {
     }
 
     await ordersRef.doc(orderId).update({ status, updatedAt: new Date() });
+
+    // Tạo thông báo cho user
+    try {
+      let title = "";
+      let message = "";
+      const orderShortId = orderId.substring(orderId.length - 6);
+      if (status === "DELIVERED") {
+        title = "Giao hàng thành công";
+        message = `Đơn hàng #${orderShortId} đã được giao thành công. Chúc bạn ngon miệng!`;
+      } else if (status === "CANCELLED") {
+        title = "Đơn hàng đã bị hủy";
+        message = `Đơn hàng #${orderShortId} đã bị hủy.`;
+      }
+
+      if (title && orderData.userId) {
+        await notificationService.createNotification(
+          orderData.userId,
+          title,
+          message,
+          orderId
+        );
+      }
+    } catch (err) {
+      console.error("[shipper updateOrderStatus Notification Error]", err);
+    }
 
     if (status === "DELIVERED") {
       await driversRef.doc(driverId).update({ status: "AVAILABLE" });

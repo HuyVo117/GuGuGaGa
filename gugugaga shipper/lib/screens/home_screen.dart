@@ -17,6 +17,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   final _apiService = ApiService();
   List<dynamic> _myOrders = [];
   List<dynamic> _availableOrders = [];
+  List<dynamic> _myReviews = [];
+  double _averageRating = 0.0;
   bool _isLoading = true;
   Timer? _timer;
   late TabController _tabController;
@@ -26,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadDriverInfo();
     _fetchAll();
   }
@@ -57,10 +59,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final myOrders = await _apiService.getAssignedOrders();
       final availableOrders = await _apiService.getAvailableOrders();
+      List<dynamic> reviews = [];
+      try {
+        reviews = await _apiService.getMyReviews();
+      } catch (_) {}
       if (mounted) {
+        double avg = 0.0;
+        if (reviews.isNotEmpty) {
+          final sum = reviews.fold<double>(0, (s, r) => s + ((r['rating'] ?? 5) as num).toDouble());
+          avg = sum / reviews.length;
+        }
         setState(() {
           _myOrders = myOrders;
           _availableOrders = availableOrders;
+          _myReviews = reviews;
+          _averageRating = avg;
         });
       }
     } catch (e) {
@@ -422,6 +435,199 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildReviewList() {
+    return Column(
+      children: [
+        // Rating summary card
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFF6B00), Color(0xFFFF8C38)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF6B00).withOpacity(0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Column(
+                children: [
+                  Text(
+                    _averageRating.toStringAsFixed(1),
+                    style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800),
+                  ),
+                  Row(
+                    children: List.generate(5, (i) {
+                      return Icon(
+                        i < _averageRating.round() ? Icons.star : Icons.star_border,
+                        color: Colors.amber.shade300,
+                        size: 18,
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_myReviews.length} đánh giá',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  children: List.generate(5, (i) {
+                    final star = 5 - i;
+                    final count = _myReviews.where((r) => ((r['rating'] ?? 5) as num).round() == star).length;
+                    final pct = _myReviews.isEmpty ? 0.0 : count / _myReviews.length;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 1),
+                      child: Row(
+                        children: [
+                          Text('$star', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.star, color: Colors.amber, size: 12),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: pct,
+                                backgroundColor: Colors.white24,
+                                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                minHeight: 6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text('$count', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Reviews list
+        Expanded(
+          child: _myReviews.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.rate_review_outlined, size: 80, color: Colors.grey.shade300),
+                      const SizedBox(height: 16),
+                      Text('Chưa có đánh giá nào', style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
+                      const SizedBox(height: 8),
+                      Text('Hãy giao hàng để nhận đánh giá từ khách!', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () => _fetchAll(),
+                  color: const Color(0xFFFF6B00),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: _myReviews.length,
+                    itemBuilder: (context, index) {
+                      final review = _myReviews[index];
+                      final rating = ((review['rating'] ?? 5) as num).toInt();
+                      final userName = review['userName'] ?? 'Khách hàng';
+                      final comment = review['comment'] ?? '';
+                      String timeStr = '';
+                      if (review['createdAt'] != null) {
+                        try {
+                          final created = review['createdAt'] is String
+                              ? DateTime.parse(review['createdAt']).toLocal()
+                              : DateTime.fromMillisecondsSinceEpoch(
+                                  ((review['createdAt']['_seconds'] ?? 0) as num).toInt() * 1000).toLocal();
+                          final diff = DateTime.now().difference(created);
+                          if (diff.inDays > 0) {
+                            timeStr = '${diff.inDays} ngày trước';
+                          } else if (diff.inHours > 0) {
+                            timeStr = '${diff.inHours} giờ trước';
+                          } else {
+                            timeStr = '${diff.inMinutes} phút trước';
+                          }
+                        } catch (_) {}
+                      }
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: Colors.orange.shade50,
+                                    child: Text(
+                                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                                      style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFFFF6B00)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(userName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                        if (timeStr.isNotEmpty)
+                                          Text(timeStr, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                                      ],
+                                    ),
+                                  ),
+                                  Row(
+                                    children: List.generate(5, (i) {
+                                      return Icon(
+                                        i < rating ? Icons.star : Icons.star_border,
+                                        color: Colors.amber,
+                                        size: 16,
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              ),
+                              if (comment.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    comment,
+                                    style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,9 +718,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.new_releases, size: 18),
-                      const SizedBox(width: 6),
-                      Text('Đơn mới (${_availableOrders.length})'),
+                      const Icon(Icons.new_releases, size: 16),
+                      const SizedBox(width: 4),
+                      Text('Mới (${_availableOrders.length})', style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -522,9 +728,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.assignment, size: 18),
-                      const SizedBox(width: 6),
-                      Text('Của tôi (${_myOrders.length})'),
+                      const Icon(Icons.assignment, size: 16),
+                      const SizedBox(width: 4),
+                      Text('Của tôi (${_myOrders.length})', style: const TextStyle(fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.star_outline, size: 16),
+                      const SizedBox(width: 4),
+                      Text('Đánh giá (${_myReviews.length})', style: const TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -540,6 +756,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               children: [
                 _buildAvailableOrderList(),
                 _buildMyOrderList(),
+                _buildReviewList(),
               ],
             ),
     );

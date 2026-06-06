@@ -10,6 +10,8 @@ class Product {
   final String? image;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final double rating;
+  final int reviewCount;
 
   Product({
     required this.id,
@@ -21,6 +23,8 @@ class Product {
     this.image,
     required this.createdAt,
     required this.updatedAt,
+    this.rating = 5.0,
+    this.reviewCount = 0,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -36,18 +40,20 @@ class Product {
       image: json['image'],
       createdAt: _parseDate(json['createdAt']),
       updatedAt: _parseDate(json['updatedAt']),
+      rating: json['rating'] != null ? (json['rating'] as num).toDouble() : 5.0,
+      reviewCount: json['reviewCount'] ?? 0,
     );
   }
 
   static DateTime _parseDate(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
+      return (DateTime.tryParse(value) ?? DateTime.now()).toLocal();
     }
     if (value is Map) {
       final seconds = value['_seconds'] ?? value['seconds'];
       if (seconds != null) {
-        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
       }
     }
     return DateTime.now();

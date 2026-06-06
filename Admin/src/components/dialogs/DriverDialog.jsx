@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
@@ -23,6 +23,12 @@ export default function DriverDialog({ open, onClose, driver, branches, onSave }
   };
 
   const [formData, setFormData] = useState(getInitialData);
+
+  useEffect(() => {
+    if (!driver && !formData.branchId && branches && branches.length > 0) {
+      setFormData((prev) => ({ ...prev, branchId: branches[0].id }));
+    }
+  }, [branches, driver, formData.branchId]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
