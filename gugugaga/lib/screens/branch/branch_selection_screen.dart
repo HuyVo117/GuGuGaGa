@@ -4,12 +4,10 @@ import '../../providers/auth_provider.dart';
 import '../../models/branch.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/api_service.dart';
-import '../main/main_screen.dart';
 
 class BranchSelectionScreen extends StatelessWidget {
   const BranchSelectionScreen({super.key});
 
-  @override
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);

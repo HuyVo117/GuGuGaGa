@@ -14,7 +14,7 @@ class AIService {
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent";
 
   Future<AIResponse> sendMessage(
-      String userMessage, List<Product> products, List<Combo> combos) async {
+      String userMessage, List<Product> products, List<Combo> combos, {Product? currentProduct}) async {
 
     final productList = products
         .map((p) => '- [${p.id}] ${p.name} - ${p.price}đ. ${p.desc ?? ""}')
@@ -24,22 +24,27 @@ class AIService {
         .map((c) => '- [${c.id}] ${c.name} - ${c.price}đ. ${c.desc ?? ""}')
         .join('\n');
 
-    final prompt = """
-Bạn là AI của GuGuGaGa.
+    String productContext = '';
+    if (currentProduct != null) {
+      productContext = '\nSản phẩm người dùng đang xem và muốn trao đổi cụ thể:\n- [${currentProduct.id}] ${currentProduct.name} - ${currentProduct.price}đ. Mô tả: ${currentProduct.desc ?? ""}\nHãy trả lời trực tiếp các câu hỏi liên quan đến sản phẩm này một cách nhiệt tình và đầy đủ nhất.\n';
+    }
 
-MENU:
+    final prompt = """
+Bạn là Trợ lý AI hỗ trợ bán hàng của GuGuGaGa.
+$productContext
+MENU cửa hàng:
 $productList
 
 $comboList
 
 User: "$userMessage"
-Nhiệm vụ: Gợi ý món theo ngân sách & sở thích.
+Nhiệm vụ: Trả lời câu hỏi của người dùng và gợi ý món ăn phù hợp nhất.
 
 Trả về JSON đúng cấu trúc:
 {
-  "text": "gợi ý",
+  "text": "nội dung phản hồi (có định dạng markdown nếu cần)",
   "suggestedItems": [
-    {"type": "product|combo", "id": 1}
+    {"type": "product|combo", "id": "ID_MÓN"}
   ]
 }
 """;

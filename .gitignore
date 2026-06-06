@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+**/new-firebase.json
+**/firebase*.json
+!**/firebase.json
 
 # Node.js
 node_modules/
@@ -46,3 +49,14 @@ Thumbs.db
 *.log
 *.tmp
 *.temp
+
+# AI Service - dataset hosted on Kaggle
+AI_Service/dataset/
+AI_Service/models/*.pth
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/

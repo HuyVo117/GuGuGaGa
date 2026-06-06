@@ -4,6 +4,7 @@ import '../models/branch.dart';
 import '../models/product.dart';
 import '../models/category.dart';
 import '../models/combo.dart';
+import '../models/review.dart';
 
 import '../constants.dart';
 
@@ -346,5 +347,170 @@ class ApiService {
       }
     }
     throw Exception('Failed to load branches');
+  }
+
+  Future<Map<String, dynamic>> recognizeFood(List<int> bytes, String filename) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/ai/recognize-food');
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(http.MultipartFile.fromBytes('image', bytes, filename: filename));
+    
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Nhận diện món ăn thất bại: ${response.body}');
+  }
+
+  // Notifications
+  Future<List<Map<String, dynamic>>> getNotifications(String token) async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/user/notifications'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return List<Map<String, dynamic>>.from(data['data']);
+      }
+    }
+    throw Exception('Lấy thông báo thất bại: ${response.body}');
+  }
+
+  Future<void> markNotificationAsRead(String id, String token) async {
+    final response = await http.patch(
+      Uri.parse('${AppConstants.baseUrl}/user/notifications/$id/read'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Đánh dấu đọc thông báo thất bại: ${response.body}');
+    }
+  }
+
+  Future<void> markAllNotificationsAsRead(String token) async {
+    final response = await http.patch(
+      Uri.parse('${AppConstants.baseUrl}/user/notifications/read-all'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Đánh dấu đọc tất cả thông báo thất bại: ${response.body}');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateProfile({
+    required String name,
+    required String email,
+    required String address,
+    required String token,
+  }) async {
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/user/auth/profile'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'name': name,
+        'email': email,
+        'address': address,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Cập nhật thông tin thất bại: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> getPaymentConfig(String token) async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/user/orders/payment-config'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Lấy cấu hình thanh toán thất bại: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> checkOrderPayment(String orderId, String token, {bool force = false}) async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/user/orders/$orderId/check-payment?force=$force'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Kiểm tra trạng thái thanh toán thất bại: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> submitOrderReview(String orderId, String token, Map<String, dynamic> reviewData) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/user/orders/$orderId/reviews'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode(reviewData),
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Gửi đánh giá thất bại: ${response.body}');
+  }
+
+  Future<List<Review>> getProductReviews(String productId) async {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/products/$productId/reviews'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        final List<dynamic> reviewsJson = data['data'];
+        return reviewsJson.map((json) => Review.fromJson(json)).toList();
+      }
+    }
+    throw Exception('Tải đánh giá sản phẩm thất bại: ${response.body}');
   }
 }

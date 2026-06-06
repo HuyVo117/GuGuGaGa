@@ -1,6 +1,9 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 import routerUser from "./routes/user.route.js";
 import routerAdmin from "./routes/admin.route.js";
@@ -33,6 +36,9 @@ app.use("/api/shipper", routerShipper);
 
 // Public routes
 app.use("/api", routerPublic);
+
+import routerAI from "./routes/ai.route.js";
+app.use("/api/ai", routerAI);
 
 // Root
 app.get("/", (req, res) => {

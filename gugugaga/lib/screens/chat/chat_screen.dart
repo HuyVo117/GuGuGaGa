@@ -9,9 +9,11 @@ import 'package:intl/intl.dart';
 import '../../models/category.dart';
 import '../../models/product.dart';
 import '../../models/combo.dart';
+import '../checkout/checkout_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final Product? product;
+  const ChatScreen({super.key, this.product});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -31,9 +33,12 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _fetchMenu();
-    // Add initial greeting
+    // Add initial greeting based on product context
+    final greetingText = widget.product != null
+        ? "Xin chào! Bạn cần tôi tư vấn gì về món **${widget.product!.name}** không?"
+        : "Xin chào! Tôi là trợ lý AI của GuGuGaGa. Bạn có bao nhiêu tiền và muốn ăn gì hôm nay?";
     _messages.add(ChatMessage(
-      text: "Xin chào! Tôi là trợ lý AI của GuGuGaGa. Bạn có bao nhiêu tiền và muốn ăn gì hôm nay?",
+      text: greetingText,
       isUser: false,
     ));
   }
@@ -65,7 +70,12 @@ class _ChatScreenState extends State<ChatScreen> {
     _controller.clear();
 
     try {
-      final response = await _aiService.sendMessage(userText, _products, _combos);
+      final response = await _aiService.sendMessage(
+        userText,
+        _products,
+        _combos,
+        currentProduct: widget.product,
+      );
       
       setState(() {
         _messages.add(ChatMessage(
@@ -88,6 +98,157 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  List<String> get _autoReplies {
+    if (widget.product != null) {
+      return [
+        "Món này còn bán không?",
+        "Có khuyến mãi gì không?",
+        "Món này có cay không?",
+        "Thời gian chuẩn bị mất bao lâu?",
+      ];
+    } else {
+      return [
+        "Hôm nay có khuyến mãi gì không?",
+        "Món nào bán chạy nhất vậy?",
+        "Shop có mở cửa không?",
+        "Thời gian giao hàng mất bao lâu?",
+      ];
+    }
+  }
+
+  Widget _buildProductBanner() {
+    if (widget.product == null) return const SizedBox.shrink();
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: widget.product!.image != null && widget.product!.image!.isNotEmpty
+                  ? Image.network(
+                      widget.product!.image!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Center(child: Icon(Icons.broken_image, size: 24)),
+                    )
+                  : const Center(child: Text("🍗", style: TextStyle(fontSize: 24))),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.product!.name,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  currencyFormat.format(widget.product!.price),
+                  style: TextStyle(
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () async {
+              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              await cartProvider.addProduct(
+                widget.product!,
+                quantity: 1,
+                branchId: authProvider.selectedBranch?.id,
+                token: authProvider.token,
+              );
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CheckoutScreen(),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            child: const Text('Mua ngay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAutoReplies() {
+    final replies = _autoReplies;
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: replies.length,
+        itemBuilder: (context, index) {
+          final replyText = replies[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: ActionChip(
+              label: Text(
+                replyText,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              backgroundColor: Colors.red.shade50,
+              side: BorderSide(color: Colors.red.shade100, width: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onPressed: () {
+                _controller.text = replyText;
+                _sendMessage();
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,6 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       body: Column(
         children: [
+          _buildProductBanner(),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -112,6 +274,7 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.all(8.0),
               child: CircularProgressIndicator(),
             ),
+          _buildAutoReplies(),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/user.dart';
+import '../checkout/map_picker_screen.dart';
+
 
 class InformationScreen extends StatefulWidget {
   const InformationScreen({super.key});
@@ -47,39 +48,52 @@ class _InformationScreenState extends State<InformationScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final currentUser = authProvider.user;
-    if (currentUser != null) {
-      final updatedUser = User(
-        id: currentUser.id,
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.updateProfile(
         name: _nameController.text,
         email: _emailController.text,
-        phone: _phoneController.text,
-        role: currentUser.role,
-        address: _addressController.text.isEmpty
-            ? null
-            : _addressController.text,
-        createdAt: currentUser.createdAt,
-        updatedAt: DateTime.now(),
+        address: _addressController.text,
       );
-      authProvider.updateUser(updatedUser);
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cập nhật thông tin thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Cập nhật thông tin thất bại: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
 
-    setState(() {
-      _isLoading = false;
-    });
+  Future<void> _pickAddressFromMap() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const MapPickerScreen()),
+    );
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Cập nhật thông tin thành công!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
+    if (result != null && result is Map) {
+      setState(() {
+        _addressController.text = result['address'];
+      });
     }
   }
 
@@ -157,10 +171,16 @@ class _InformationScreenState extends State<InformationScreen> {
               // Address Field
               TextFormField(
                 controller: _addressController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Địa chỉ',
-                  prefixIcon: Icon(Icons.location_on),
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.location_on),
+                  suffixIcon: IconButton(
+                    onPressed: _pickAddressFromMap,
+                    icon: const Icon(Icons.map),
+                    color: Colors.red.shade700,
+                    tooltip: 'Chọn từ bản đồ',
+                  ),
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 2,
               ),

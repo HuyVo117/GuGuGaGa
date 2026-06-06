@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:image_picker/image_picker.dart';
 import '../constants.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
@@ -24,6 +25,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   final _apiService = ApiService();
   final _locationService = LocationService();
   final _routeService = RouteService();
+  final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
   List<LatLng> _routePoints = [];
   double _routeDistanceKm = 0;
@@ -591,29 +593,51 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                         // Action button
                         if (status == 'DRIVER_ASSIGNED') ...[
                           const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            height: 54,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : () => _updateStatus('DELIVERED'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00C853),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                                  : const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.check_circle, size: 22),
-                                        SizedBox(width: 8),
-                                        Text('XÁC NHẬN ĐÃ GIAO HÀNG', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                                      ],
+                          if (_isLoading)
+                            const Center(child: CircularProgressIndicator(color: Color(0xFF00C853)))
+                          else
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 54,
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.camera_alt, color: Colors.blue),
+                                      label: const Text(
+                                        'QUÉT AI ĐỐI SOÁT',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.blue,
+                                        side: const BorderSide(color: Colors.blue, width: 2),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      ),
+                                      onPressed: _scanReceiptWithAI,
                                     ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: SizedBox(
+                                    height: 54,
+                                    child: ElevatedButton.icon(
+                                      icon: const Icon(Icons.check_circle, size: 20),
+                                      label: const Text(
+                                        'XÁC NHẬN GIAO',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF00C853),
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                      ),
+                                      onPressed: () => _updateStatus('DELIVERED'),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
                         ],
                         const SizedBox(height: 30),
                       ],
@@ -625,6 +649,168 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _scanReceiptWithAI() async {
+    try {
+      final XFile? file = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (file == null) return;
+
+      setState(() => _isLoading = true);
+
+      // Call API
+      final bytes = await file.readAsBytes();
+      final result = await _apiService.scanReceipt(bytes, file.name);
+      
+      setState(() => _isLoading = false);
+
+      final String? orderId = result['orderId'];
+      final int? amount = result['amount'];
+      final String paymentStatus = result['paymentStatus'] ?? "UNKNOWN";
+      final String paymentMethod = result['paymentMethod'] ?? "UNKNOWN";
+
+      final isIdMatch = orderId != null && orderId.toString().contains(widget.order['id'].toString());
+      final isAmountMatch = amount != null && amount == (widget.order['totalAmount'] as num).toInt();
+      final isSuccess = paymentStatus == "SUCCESS";
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.psychology, color: Colors.blue),
+              SizedBox(width: 8),
+              Text("Kết Quả Đối Soát AI"),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildVerificationRow(
+                label: "Mã đơn hàng:",
+                value: orderId ?? "Không tìm thấy",
+                isMatch: isIdMatch,
+              ),
+              const SizedBox(height: 8),
+              _buildVerificationRow(
+                label: "Số tiền:",
+                value: amount != null ? "${amount}đ" : "Không tìm thấy",
+                isMatch: isAmountMatch,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text("Phương thức: ", style: TextStyle(fontWeight: FontWeight.w500)),
+                  Text(paymentMethod),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Text("Trạng thái GD: ", style: TextStyle(fontWeight: FontWeight.w500)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isSuccess ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      paymentStatus,
+                      style: TextStyle(
+                        color: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(height: 24),
+              if (isIdMatch && isAmountMatch && isSuccess)
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Thông tin trùng khớp hoàn toàn!",
+                        style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                const Row(
+                  children: [
+                    Icon(Icons.warning, color: Colors.orange, size: 20),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        "Phát hiện thông tin chưa khớp hoặc giao dịch chưa thành công.",
+                        style: TextStyle(color: Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Hủy"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00C853),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _updateStatus('DELIVERED');
+              },
+              child: const Text("Xác Nhận Giao"),
+            ),
+          ],
+        ),
+      );
+
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Lỗi đối soát AI: $e")),
+        );
+      }
+    }
+  }
+
+  Widget _buildVerificationRow({required String label, required String value, required bool isMatch}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        Row(
+          children: [
+            Text(value, style: TextStyle(color: isMatch ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 4),
+            Icon(
+              isMatch ? Icons.check_circle : Icons.cancel,
+              color: isMatch ? Colors.green : Colors.red,
+              size: 16,
+            ),
+          ],
+        ),
+      ],
     );
   }
 

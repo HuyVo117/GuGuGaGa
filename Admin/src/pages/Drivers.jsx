@@ -1,26 +1,26 @@
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreVertical, Edit, Trash2, Truck } from "lucide-react";
+import { Search, Plus, MoreVertical, Edit, Trash2, Truck, Star, MessageSquare } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import * as Dialog from "@radix-ui/react-dialog";
 import DriverDialog from "../components/dialogs/DriverDialog";
 import { driverService } from "../services/driverService";
+import { branchService } from "../services/branchService";
+import { reviewService } from "../services/reviewService";
 import { toast } from "react-hot-toast";
 
-// Mock branches for dialog (keep for now as we don't have branchService yet)
-const mockBranches = [
-  { id: 1, name: "Chi nhánh Quận 1" },
-  { id: 2, name: "Chi nhánh Quận 2" },
-];
-
-// Mock data
 export default function Drivers() {
   const [drivers, setDrivers] = useState([]);
+  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [driverToDelete, setDriverToDelete] = useState(null);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [reviewDriver, setReviewDriver] = useState(null);
+  const [driverReviews, setDriverReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Fetch drivers
   const fetchDrivers = async () => {
@@ -36,8 +36,20 @@ export default function Drivers() {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const response = await branchService.getAll();
+      if (response.success) {
+        setBranches(response.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch branches:", error);
+    }
+  };
+
   useEffect(() => {
     fetchDrivers();
+    fetchBranches();
   }, []);
 
   const filteredDrivers = drivers.filter(
@@ -60,6 +72,22 @@ export default function Drivers() {
   const handleDelete = (driver) => {
     setDriverToDelete(driver);
     setDeleteDialogOpen(true);
+  };
+
+  const handleViewReviews = async (driver) => {
+    setReviewDriver(driver);
+    setReviewDialogOpen(true);
+    setLoadingReviews(true);
+    try {
+      const response = await reviewService.getDriverReviews(driver.id);
+      setDriverReviews(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch reviews:", error);
+      toast.error("Không thể tải đánh giá");
+      setDriverReviews([]);
+    } finally {
+      setLoadingReviews(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -169,6 +197,9 @@ export default function Drivers() {
                 <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Trạng thái
                 </th>
+                <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                  Đánh giá
+                </th>
                 <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Hành động
                 </th>
@@ -177,7 +208,7 @@ export default function Drivers() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredDrivers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                     Không tìm thấy tài xế nào
                   </td>
                 </tr>
@@ -217,6 +248,17 @@ export default function Drivers() {
                         {getStatusLabel(driver.status)}
                       </span>
                     </td>
+                    <td className="px-4 lg:px-6 py-4 whitespace-nowrap hidden sm:table-cell">
+                      <div className="flex items-center gap-1">
+                        <Star size={14} className="text-amber-400 fill-amber-400" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {driver.rating ? Number(driver.rating).toFixed(1) : "--"}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          ({driver.reviewCount || 0})
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger asChild>
@@ -243,6 +285,14 @@ export default function Drivers() {
                               <Trash2 size={16} />
                               Xóa
                             </DropdownMenu.Item>
+                            <DropdownMenu.Separator className="h-px bg-gray-200 my-1" />
+                            <DropdownMenu.Item
+                              onClick={() => handleViewReviews(driver)}
+                              className="flex items-center gap-2 px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 rounded cursor-pointer outline-none"
+                            >
+                              <MessageSquare size={16} />
+                              Xem đánh giá
+                            </DropdownMenu.Item>
                           </DropdownMenu.Content>
                         </DropdownMenu.Portal>
                       </DropdownMenu.Root>
@@ -255,16 +305,15 @@ export default function Drivers() {
         </div>
       </div>
 
-      {/* Driver Dialog */}
       <DriverDialog
-        key={selectedDriver?.id || "new"}
+        key={selectedDriver?.id ? `edit-${selectedDriver.id}` : `new-${dialogOpen}`}
         open={dialogOpen}
         onClose={() => {
           setDialogOpen(false);
           setSelectedDriver(null);
         }}
         driver={selectedDriver}
-        branches={mockBranches}
+        branches={branches}
         onSave={handleSave}
       />
 
@@ -297,7 +346,111 @@ export default function Drivers() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
+      {/* Driver Reviews Dialog */}
+      <Dialog.Root open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-50 z-50" />
+          <Dialog.Content className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-xl w-full max-w-lg z-50 max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-100">
+              <Dialog.Title className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Star size={20} className="text-amber-400 fill-amber-400" />
+                Đánh giá của {reviewDriver?.name}
+              </Dialog.Title>
+              {reviewDriver && (
+                <div className="flex items-center gap-3 mt-3">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        size={18}
+                        className={s <= Math.round(reviewDriver.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-300"}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-lg font-bold text-gray-900">
+                    {reviewDriver.rating ? Number(reviewDriver.rating).toFixed(1) : "--"}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    ({reviewDriver.reviewCount || 0} đánh giá)
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingReviews ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500" />
+                </div>
+              ) : driverReviews.length === 0 ? (
+                <div className="text-center py-8">
+                  <MessageSquare size={48} className="mx-auto text-gray-300 mb-3" />
+                  <p className="text-gray-500">Chưa có đánh giá nào</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {driverReviews.map((review, idx) => {
+                    const rating = review.rating || 5;
+                    let timeStr = "";
+                    if (review.createdAt) {
+                      try {
+                        const date = review.createdAt._seconds
+                          ? new Date(review.createdAt._seconds * 1000)
+                          : new Date(review.createdAt);
+                        const diffMs = Date.now() - date.getTime();
+                        const diffMins = Math.floor(diffMs / 60000);
+                        const diffHours = Math.floor(diffMins / 60);
+                        const diffDays = Math.floor(diffHours / 24);
+                        if (diffDays > 0) timeStr = `${diffDays} ngày trước`;
+                        else if (diffHours > 0) timeStr = `${diffHours} giờ trước`;
+                        else timeStr = `${Math.max(1, diffMins)} phút trước`;
+                      } catch (e) {}
+                    }
+                    return (
+                      <div key={idx} className="border border-gray-100 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-amber-600">
+                                {(review.userName || "K")[0].toUpperCase()}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{review.userName || "Khách hàng"}</p>
+                              {timeStr && <p className="text-xs text-gray-400">{timeStr}</p>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                size={14}
+                                className={s <= rating ? "text-amber-400 fill-amber-400" : "text-gray-300"}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        {review.comment && (
+                          <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-3 mt-2">
+                            {review.comment}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-100">
+              <Dialog.Close asChild>
+                <button className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium">
+                  Đóng
+                </button>
+              </Dialog.Close>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
-

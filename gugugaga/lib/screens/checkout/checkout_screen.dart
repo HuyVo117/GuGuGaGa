@@ -5,8 +5,9 @@ import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/order.dart';
 import '../../services/api_service.dart';
-import '../order/order_history_screen.dart';
+
 import '../payment/payment_success_screen.dart';
+import 'bank_transfer_screen.dart';
 
 import 'map_picker_screen.dart';
 
@@ -28,6 +29,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String _phoneOption = 'default'; // 'default' or 'custom'
   double? _latitude;
   double? _longitude;
+  String _paymentMethod = 'COD'; // 'COD' or 'BANKING'
+
+  @override
+  void initState() {
+    super.initState();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.user?.address != null && auth.user!.address!.isNotEmpty) {
+      _addressOption = 'default';
+    } else {
+      _addressOption = 'custom';
+    }
+  }
 
   @override
   void dispose() {
@@ -141,8 +154,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           : _phoneController.text;
 
       // Map frontend payment method to backend format
-      String backendPaymentMethod = 'COD'; // Default to COD for now
-      // You can add payment method selection in the UI later
+      String backendPaymentMethod = _paymentMethod;
 
       // Call API to create order
       final apiService = ApiService();
@@ -168,16 +180,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       });
 
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const PaymentSuccessScreen()),
-        );
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đặt hàng thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (backendPaymentMethod == 'BANKING') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => BankTransferScreen(
+                orderId: order.id,
+                amount: order.totalAmount,
+              ),
+            ),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const PaymentSuccessScreen()),
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đặt hàng thành công!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() {
@@ -278,10 +300,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 // Address Selection
                 const Text('Địa chỉ:', style: TextStyle(fontWeight: FontWeight.bold)),
                 RadioListTile<String>(
-                  title: Text(user.address ?? 'Địa chỉ mặc định'),
+                  title: Text(
+                    user.address != null && user.address!.isNotEmpty
+                        ? user.address!
+                        : 'Chưa thiết lập địa chỉ mặc định (Vui lòng cài đặt ở trang cá nhân)',
+                  ),
                   value: 'default',
                   groupValue: _addressOption,
                   onChanged: (value) {
+                    if (user.address == null || user.address!.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Vui lòng cập nhật địa chỉ mặc định trong mục Tài khoản.'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
                     setState(() {
                       _addressOption = value!;
                     });
@@ -365,6 +400,38 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                 const SizedBox(height: 16),
               ],
+
+              // Payment Method
+              const Text(
+                'Phương thức thanh toán',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              RadioListTile<String>(
+                title: const Text('Tiền mặt (COD)'),
+                value: 'COD',
+                groupValue: _paymentMethod,
+                onChanged: (value) {
+                  setState(() {
+                    _paymentMethod = value!;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+                activeColor: Colors.red.shade700,
+              ),
+              RadioListTile<String>(
+                title: const Text('Chuyển khoản ngân hàng'),
+                value: 'BANKING',
+                groupValue: _paymentMethod,
+                onChanged: (value) {
+                  setState(() {
+                    _paymentMethod = value!;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+                activeColor: Colors.red.shade700,
+              ),
+              const SizedBox(height: 24),
 
               // Note Field
               TextFormField(

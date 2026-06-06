@@ -35,6 +35,7 @@ class Order {
   final List<OrderItem> items;
   final Branch? branch;
   final Driver? driver;
+  final bool isReviewed;
 
   Order({
     required this.id,
@@ -52,6 +53,7 @@ class Order {
     required this.items,
     this.branch,
     this.driver,
+    this.isReviewed = false,
   });
 
   String get statusText {
@@ -142,19 +144,20 @@ class Order {
           [],
       branch: json['branch'] != null ? Branch.fromJson(json['branch']) : null,
       driver: json['driver'] != null ? Driver.fromJson(json['driver']) : null,
+      isReviewed: json['isReviewed'] ?? false,
     );
   }
 
   static DateTime _parseDate(dynamic value) {
     if (value == null) return DateTime.now();
     if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
+      return (DateTime.tryParse(value) ?? DateTime.now()).toLocal();
     }
     if (value is Map) {
       // Firestore Timestamp format: {_seconds: ..., _nanoseconds: ...}
       final seconds = value['_seconds'] ?? value['seconds'];
       if (seconds != null) {
-        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000).toLocal();
       }
     }
     return DateTime.now();

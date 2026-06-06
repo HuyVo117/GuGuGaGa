@@ -29,12 +29,24 @@ async function populateCategory(product) {
 export const productService = {
   // Lấy tất cả sản phẩm, có thể filter theo category
   async getAll(categoryId) {
-    let query = productsRef.orderBy("createdAt", "desc");
+    let query = productsRef;
     if (categoryId) {
-      query = productsRef.where("categoryId", "==", categoryId).orderBy("createdAt", "desc");
+      // Tránh kết hợp where() và orderBy() để không cần tạo chỉ mục phức hợp (composite index) trên Firestore
+      query = productsRef.where("categoryId", "==", categoryId);
+    } else {
+      query = productsRef.orderBy("createdAt", "desc");
     }
     const snap = await query.get();
-    const products = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    let products = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // Sắp xếp thủ công trong bộ nhớ nếu được lọc theo categoryId
+    if (categoryId) {
+      products.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt).getTime();
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt).getTime();
+        return timeB - timeA;
+      });
+    }
 
     // Populate category for each product
     await Promise.all(products.map(populateCategory));

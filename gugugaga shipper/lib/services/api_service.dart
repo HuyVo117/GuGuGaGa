@@ -147,6 +147,50 @@ class ApiService {
   }
   
   
+  Future<Map<String, dynamic>> scanReceipt(List<int> bytes, String filename) async {
+    final uri = Uri.parse('${AppConstants.baseUrl}/ai/scan-receipt');
+    final request = http.MultipartRequest('POST', uri)
+      ..files.add(http.MultipartFile.fromBytes('image', bytes, filename: filename));
+    
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(streamedResponse);
+    
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return data['data'];
+      }
+    }
+    throw Exception('Quét hóa đơn thất bại: ${response.body}');
+  }
+  
+  Future<List<dynamic>> getMyReviews() async {
+    final prefs = await SharedPreferences.getInstance();
+    final driverStr = prefs.getString('driver');
+
+    if (driverStr == null) throw Exception('Chưa đăng nhập');
+
+    final driver = json.decode(driverStr);
+    final driverId = driver['id']?.toString();
+
+    if (driverId == null || driverId.isEmpty) {
+      throw Exception('Không tìm thấy mã tài xế');
+    }
+
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/drivers/$driverId/reviews'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (data['success'] == true) {
+        return List<dynamic>.from(data['data'] ?? []);
+      }
+    }
+    return [];
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();

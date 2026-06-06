@@ -7,6 +7,8 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../models/order.dart';
 import 'tracking_screen.dart';
+import '../review/review_screen.dart';
+import '../cart/cart_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -18,21 +20,15 @@ class OrderHistoryScreen extends StatefulWidget {
 class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _loadOrders();
-    // Poll every 5 seconds
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      _loadOrders(silent: true);
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     super.dispose();
   }
 
@@ -428,10 +424,143 @@ class _OrderCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (order.status == OrderStatus.completed || order.status == OrderStatus.cancelled) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  if (order.status == OrderStatus.completed && !order.isReviewed)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final itemsList = order.items.map((item) => {
+                              'id': item.id,
+                              'productId': item.productId,
+                              'comboId': item.comboId,
+                              'quantity': item.quantity,
+                              'price': item.price,
+                              'product': item.product != null ? {
+                                'name': item.product!.name,
+                                'image': item.product!.image,
+                              } : null,
+                              'combo': item.combo != null ? {
+                                'name': item.combo!.name,
+                                'image': item.combo!.image,
+                              } : null,
+                            }).toList();
+
+                            final orderMap = {
+                              'id': order.id,
+                              'driverId': order.driver?.id,
+                              'driver': order.driver != null ? {
+                                'name': order.driver!.name,
+                              } : null,
+                              'orderItem': itemsList,
+                            };
+
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ReviewScreen(order: orderMap),
+                              ),
+                            );
+
+                            if (result == true) {
+                              final state = context.findAncestorStateOfType<_OrderHistoryScreenState>();
+                              state?._loadOrders();
+                            }
+                          },
+                          icon: const Icon(Icons.rate_review, size: 18),
+                          label: const Text('Đánh giá'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _handleReorder(context, order),
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Đặt lại đơn'),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red.shade700),
+                        foregroundColor: Colors.red.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  void _handleReorder(BuildContext context, Order order) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final token = authProvider.token;
+    final branchId = authProvider.selectedBranch?.id;
+
+    if (token == null || branchId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng đăng nhập và chọn chi nhánh.')),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final apiService = ApiService();
+      for (var item in order.items) {
+        if (item.productId != null) {
+          await apiService.addToCart(branchId, item.productId!, null, item.quantity, token);
+        } else if (item.comboId != null) {
+          await apiService.addToCart(branchId, null, item.comboId!, item.quantity, token);
+        }
+      }
+
+      await cartProvider.loadCart(branchId, token);
+
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã thêm các món vào giỏ hàng thành công!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CartScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi khi đặt lại đơn: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 

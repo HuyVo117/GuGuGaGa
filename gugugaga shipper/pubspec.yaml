@@ -16,6 +16,7 @@ dependencies:
   flutter_map: ^7.0.2
   flutter_compass: ^0.8.1
   latlong2: ^0.9.1
+  image_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:

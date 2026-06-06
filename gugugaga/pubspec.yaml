@@ -19,6 +19,8 @@ dependencies:
   geolocator: ^12.0.0
   flutter_dotenv: ^5.2.1
   google_sign_in: ^6.2.1
+  image_picker: ^1.2.2
+  shared_preferences: ^2.2.3
 
 dev_dependencies:
   flutter_test:
@@ -29,3 +31,4 @@ flutter:
   uses-material-design: true
   assets:
     - .env
+    - assets/images/qr_payment.jpg

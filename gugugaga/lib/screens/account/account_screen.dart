@@ -6,6 +6,7 @@ import 'information_screen.dart';
 import '../order/order_history_screen.dart';
 import '../auth/login_screen.dart';
 import '../auth/register_screen.dart';
+import 'favorite_products_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -196,10 +197,28 @@ class AccountScreen extends StatelessWidget {
             },
           ),
           _AccountMenuItem(
+            icon: Icons.favorite,
+            title: 'Món ăn yêu thích',
+            textColor: Colors.red.shade700,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FavoriteProductsScreen(),
+                ),
+              );
+            },
+          ),
+          _AccountMenuItem(
             icon: Icons.location_on,
             title: 'Địa chỉ',
             onTap: () {
-              // Navigate to address screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const InformationScreen(),
+                ),
+              );
             },
           ),
           _AccountMenuItem(
