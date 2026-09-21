@@ -80,16 +80,16 @@ graph TD
 | **1.3.6** | Flutter Customer: Camera AI Scan món & Chatbot AI | UI chụp/chọn ảnh gửi AI nhận diện; màn hình chatbot tư vấn thực đơn qua Gemini. | 2 tuần | 80h | **Could** | ❌ Không |
 | **1.4.1** | Flutter Shipper: Đăng nhập & Bật/Tắt trạng thái nhận đơn | Màn hình đăng nhập tài xế, chuyển đổi trạng thái sẵn sàng giao (Online/Offline). | 1 tuần | 40h | **Must** | ✅ Có |
 | **1.4.2** | Flutter Shipper: Tiếp nhận & Quản lý danh sách đơn hàng | Danh sách đơn chờ giao, xem tiền cước, địa chỉ lấy món và địa chỉ giao món. | 1.5 tuần | 60h | **Must** | ✅ Có |
-| **1.4.3** | Flutter Shipper: Tích hợp Mapbox dẫn đường (Routing) | Vẽ tuyến đường ngắn nhất từ quán đến nhà khách, hiển thị chỉ dẫn rẽ đường. | 1.5 tuần | 60h | **Should** | ❌ Không |
+| **1.4.3** | Flutter Shipper: Tích hợp Mapbox dẫn đường (Routing) | Vẽ tuyến đường ngắn nhất từ quán đến nhà khách, hiển thị chỉ dẫn rẽ đường. | 1.5 tuần | 60h | **Should** | ✅ Có |
 | **1.4.4** | Flutter Shipper: Xác nhận giao hàng & Thu tiền COD | Nút bấm chuyển trạng thái: Đã lấy món $\rightarrow$ Đang giao $\rightarrow$ Đã giao/Đã thu COD. | 1 tuần | 40h | **Must** | ✅ Có |
-| **1.5.1** | Admin Portal: Trang Dashboard tổng quan & Biểu đồ KPI | Biểu đồ doanh thu ngày/tuần/tháng (Recharts), đếm đơn mới, món bán chạy. | 1.5 tuần | 60h | **Should** | ❌ Không |
+| **1.5.1** | Admin Portal: Trang Dashboard tổng quan & Biểu đồ KPI | Biểu đồ doanh thu ngày/tuần/tháng (Recharts), đếm đơn mới, món bán chạy. | 1.5 tuần | 60h | **Should** | ✅ Có |
 | **1.5.2** | Admin Portal: Quản lý Thực đơn, Danh mục & Chi nhánh | Bảng dữ liệu (Datatable) thêm/sửa/xóa sản phẩm, trạng thái hết hàng, ảnh món ăn. | 1.5 tuần | 60h | **Must** | ✅ Có |
 | **1.5.3** | Admin Portal: Quản lý Đơn hàng & Điều phối Shipper | Danh sách đơn toàn hệ thống, gán tài xế thủ công hoặc hủy đơn sai sót. | 1.5 tuần | 60h | **Must** | ✅ Có |
 | **1.5.4** | Admin Portal: Quản lý Tài khoản & Phân quyền Shipper | Danh sách khách hàng, duyệt tài xế mới, khóa tài khoản vi phạm. | 1 tuần | 40h | **Should** | ❌ Không |
-| **1.6.1** | AI Service: Thu thập & Tiền xử lý Dataset 30 món ăn | Gom 25.000 ảnh từ Kaggle, phân chia Train/Val/Test, tăng cường ảnh (Augmentation). | 1.5 tuần | 60h | **Could** | ❌ Không |
+| **1.6.1** | AI Service: Thu thập & Tiền xử lý Dataset 30 món ăn | Gom 25.000 ảnh từ Kaggle, phân chia Train/Val/Test, tăng cường ảnh (Augmentation). | 1.5 tuần | 60h | **Could** | ✅ Có |
 | **1.6.2** | AI Service: Huấn luyện & Đánh giá MobileNetV2 | Transfer Learning trên PyTorch, tinh chỉnh blocks 14-18, lưu file `.pth` đạt Acc > 85%. | 2 tuần | 80h | **Could** | ❌ Không |
-| **1.6.3** | AI Service: Triển khai Flask REST API & Image Fallback | Endpoint `/predict`, chuẩn hóa tensor ảnh gửi lên, mapping nhãn vào menu Firestore. | 1 tuần | 40h | **Could** | ❌ Không |
-| **1.6.4** | AI Service: Tích hợp Gemini API tư vấn món ăn | Thiết lập Prompt system, format dữ liệu trả về món ăn khuyến nghị. | 1 tuần | 40h | **Won't** *(v2)*| ❌ Không |
+| **1.6.3** | AI Service: Triển khai Flask REST API & Image Fallback | Endpoint `/predict`, chuẩn hóa tensor ảnh gửi lên, mapping nhãn vào menu Firestore. | 1 tuần | 40h | **Could** | ✅ Có |
+| **1.6.4** | AI Service: Tích hợp Gemini API tư vấn món ăn | Thiết lập Prompt system, format dữ liệu trả về món ăn khuyến nghị. | 1 tuần | 40h | **Won't** *(v2)*| ✅ Có |
 | **1.7.1** | Kiểm thử tích hợp hệ thống (Integration & E2E Testing)| Test liên thông: Khách đặt $\rightarrow$ Backend $\rightarrow$ Admin duyệt $\rightarrow$ Shipper giao. | 2 tuần | 80h | **Must** | ✅ Có |
 | **1.7.2** | Triển khai môi trường Production & Tối ưu bảo mật | Deploy Backend lên Cloud Run / VPS, cấu hình Domain, SSL HTTPS, Firestore Security. | 1 tuần | 40h | **Must** | ✅ Có |
 
@@ -295,34 +295,34 @@ Tiến độ được chia thành **4 Sprint** theo quy trình Agile/Scrum, tậ
 
 ```mermaid
 gantt
-    title TIẾN ĐỘ DỰ ÁN GUGUGAGA (12 TUẦN - 4 SPRINTS)
+    title TIẾN ĐỘ DỰ ÁN GUGUGAGA (14 TUẦN - BẮT ĐẦU 05/09/2026)
     dateFormat  YYYY-MM-DD
     axisFormat  Tuần %W
 
     section Sprint 1: Nền tảng & Core
-    Khởi tạo Repo & CI/CD & Firebase (A)       :done, a1, 2026-10-01, 2026-10-14
-    Backend Auth & Phân quyền (B)              :done, b1, 2026-10-15, 2026-10-24
-    Backend Menu, Danh mục, Chi nhánh (C)      :done, c1, 2026-10-25, 2026-11-04
-    AI Dataset 25.000 ảnh & Tiền xử lý (K1)   :active, k1, 2026-10-15, 2026-11-04
+    Khởi tạo Repo & CI/CD & Firebase (A)       :done, a1, 2026-09-05, 2026-09-18
+    Backend Auth & Phân quyền (B)              :active, b1, 2026-09-19, 2026-09-28
+    Backend Menu, Danh mục, Chi nhánh (C)      :c1, 2026-09-29, 2026-10-09
+    AI Dataset 25.000 ảnh & Tiền xử lý (K1)   :active, k1, 2026-09-19, 2026-10-09
 
     section Sprint 2: Luồng Đặt Món & MVP
-    Backend Giỏ hàng & Vòng đời Đơn hàng (D)   :crit, active, d1, 2026-11-05, 2026-11-18
-    Backend Tích hợp VietQR & Casso (E)        :crit, e1, 2026-11-19, 2026-11-28
-    Customer App UI Auth & Xem Menu (F)        :f1, 2026-11-05, 2026-11-21
-    Customer App Giỏ hàng & Thanh toán QR (G)  :crit, g1, 2026-11-22, 2026-12-08
-    AI Training MobileNetV2 PyTorch (K2)       :k2, 2026-11-05, 2026-11-25
+    Backend Giỏ hàng & Vòng đời Đơn hàng (D)   :crit, d1, 2026-10-10, 2026-10-23
+    Backend Tích hợp VietQR & Casso (E)        :crit, e1, 2026-10-24, 2026-11-03
+    Customer App UI Auth & Xem Menu (F)        :f1, 2026-10-10, 2026-10-26
+    Customer App Giỏ hàng & Thanh toán QR (G)  :crit, g1, 2026-10-27, 2026-11-12
+    AI Training MobileNetV2 PyTorch (K2)       :k2, 2026-10-10, 2026-10-31
 
     section Sprint 3: Shipper & Điều Phối
-    Shipper App Tiếp nhận đơn (H)              :h1, 2026-11-19, 2026-12-05
-    Shipper App Xác nhận Giao & COD (I)        :crit, i1, 2026-12-06, 2026-12-12
-    Admin Web Quản lý Món & Đơn hàng (J)       :j1, 2026-11-15, 2026-12-05
-    AI Flask Inference API & Fallback (K3)     :k3, 2026-11-26, 2026-12-08
+    Shipper App Tiếp nhận đơn (H)              :h1, 2026-10-24, 2026-11-10
+    Shipper App Xác nhận Giao & COD (I)        :crit, i1, 2026-11-11, 2026-11-18
+    Admin Web Quản lý Món & Đơn hàng (J)       :j1, 2026-10-20, 2026-11-10
+    AI Flask Inference API & Fallback (K3)     :k3, 2026-11-01, 2026-11-15
 
     section Sprint 4: Kiểm Thử & Phát Hành
-    Milestone Đạt Chuẩn MVP                    :milestone, m1, 2026-12-12, 0d
-    Kiểm thử Tích hợp toàn diện E2E (L)        :crit, l1, 2026-12-13, 2026-12-26
-    Triển khai Production & Bảo mật (M)        :crit, m2, 2026-12-27, 2027-01-05
-    Nghiệm thu Đồ án & Bảo vệ                  :milestone, m3, 2027-01-06, 0d
+    Milestone Đạt Chuẩn MVP                    :milestone, m1, 2026-11-18, 0d
+    Kiểm thử Tích hợp toàn diện E2E (L)        :crit, l1, 2026-11-19, 2026-12-02
+    Triển khai Production & Bảo mật (M)        :crit, m2, 2026-12-03, 2026-12-12
+    Nghiệm thu Đồ án & Bảo vệ                  :milestone, m3, 2026-12-15, 0d
 ```
 
 ---
