@@ -19,3 +19,6 @@ This repository is the **legacy foundation** for GuGuGaGa Hybrid Modernization (
 8. Use proposed/pending/verified statuses precisely. Do not assume a planning schedule is actual history.
 
 Repo-local skills are team instructions. They do **not** install package dependencies, configure GitHub permissions, or connect external accounts.
+
+## Scope drift warning
+Existing GitHub issues #19–#24 currently describe a **standalone User Management System**, which may conflict with the earlier whole-platform GuGuGaGa Hybrid Modernization plan. Before creating WBS, architecture work or new issues, compare the latest instructor-approved scope, these issue descriptions, and inherited repository modules. Ask PM to resolve any mismatch; do not silently expand the independent system to all GuGuGaGa apps.
